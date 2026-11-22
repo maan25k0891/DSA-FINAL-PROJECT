@@ -1,0 +1,74 @@
+a n#include <iostream>
+#include <fstream>
+#include <string>
+#include <iomanip>
+#include <limits>
+#include <cmath>
+#include <cstring>
+#include <cctype>
+#include <cstdlib>
+using namespace std;
+
+const int max_history     = 12;
+const int hash_table_size = 11;
+
+class InputHelper{
+public:
+    static string trim(const string& s){
+        size_t a = 0, b = s.length();
+        while (a < b && isspace((unsigned char)s[a])) a++;
+        while (b > a && isspace((unsigned char)s[b - 1])) b--;
+        return s.substr(a, b - a);
+    }
+
+    static string readline(const string& prompt){
+        cout << prompt;
+        string line;
+        if(!getline(cin, line)){
+            cout << endl << "Input closed. Exiting the program." << endl;
+            exit(0);
+        }
+        return line;
+    }
+
+    static int readint(const string& prompt, int minv, int maxv){
+        while(true){
+            string t = trim(readline(prompt));
+            char* end = NULL;
+            long v = strtol(t.c_str(), &end, 10);
+            if(t.empty() || *end != '\0')
+                cout << "  Error: please enter a whole number." << endl;
+            else if(v < minv || v > maxv)
+                cout << "  Error: value must be between " << minv << " and " << maxv << "." << endl;
+            else
+                return (int)v;
+        }
+    }
+
+    static double readdouble(const string& prompt, double minv, double maxv){
+        while(true){
+            string t = trim(readline(prompt));
+            char* end = NULL;
+            double v = strtod(t.c_str(), &end);
+            if(t.empty() || *end != '\0')
+                cout << "  Error: please enter a number (for example 3.25)." << endl;
+            else if(!(v >= minv && v <= maxv))
+                cout << "  Error: value must be between " << minv << " and " << maxv << "." << endl;
+            else
+                return v;
+        }
+    }
+
+    static bool confirm(const string& prompt){
+        while(true){
+            string t = trim(readline(prompt + " (y/n): "));
+            if(t == "y" || t == "Y") return true;
+            if(t == "n" || t == "N") return false;
+            cout << "  Error: please enter y or n." << endl;
+        }
+    }
+
+    static void pause(){
+        readline("\nPress Enter to continue...");
+    }
+};
