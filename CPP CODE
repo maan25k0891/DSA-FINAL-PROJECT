@@ -1230,3 +1230,96 @@ public:
         }
     }
 };
+
+class StudentManager {
+private:
+    BST                   bst;
+    HashTable             depttable;
+    HashTable             nametable;
+    MaxHeap               heap;
+    FileManager           filemgr;
+    WhatIfCGPACalculator  calculator;
+    SmartAcademicPredictor predictor;
+
+    StudentManager(const StudentManager&);
+    StudentManager& operator=(const StudentManager&);
+
+    void rebuildindexes() {
+        depttable.clear();
+        nametable.clear();
+        heap.clear();
+        int n = bst.countnodes();
+        if (n == 0) return;
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+        for (int i = 0; i < n; i++) {
+            depttable.insert(arr[i]);
+            nametable.insert(arr[i]);
+        }
+        heap.buildfromarray(arr, n);
+        delete[] arr;
+    }
+
+    void autosave() {
+        if (!filemgr.save(bst))
+            cout << "WARNING: " << filemgr.getfilename() << " could not be saved!" << endl;
+        else
+            cout << "(Changes auto-saved to " << filemgr.getfilename() << ")" << endl;
+    }
+
+    void addsample(const string& roll, const string& name, const string& dept, int sem,
+                   double cgpa, const string& email, int credits,
+                   const double* hist, int histcount) {
+        Student s(roll, name, dept, sem, cgpa, email, credits);
+        for (int i = 0; i < histcount; i++) s.addsemestergpa(hist[i]);
+        bst.insert(s);
+    }
+
+    void createsamples() {
+        double h1[] = {3.20, 3.45, 3.70};
+        double h2[] = {3.70, 3.85, 3.80, 3.85};
+        double h3[] = {3.10, 2.70};
+        double h4[] = {3.40, 3.50, 3.60, 3.70, 3.80};
+        double h5[] = {3.10};
+        double h6[] = {3.20, 3.30, 3.25, 3.25, 3.30, 3.20};
+        double h7[] = {2.80, 2.40, 2.15};
+        double h8[] = {3.90, 4.00};
+        double h9[] = {2.50, 2.60, 2.70, 2.75, 2.80, 2.90, 3.00};
+        double h10[] = {3.30, 3.20, 3.40, 3.30};
+
+        addsample("25K-1001", "Ali Raza",       "CS", 4, 3.45, "ali.raza@nu.edu.pk",      48,  h1, 3);
+        addsample("25K-1002", "Sara Khan",      "SE", 5, 3.80, "sara.khan@nu.edu.pk",     64,  h2, 4);
+        addsample("25K-1003", "Bilal Ahmed",    "DS", 3, 2.90, "bilal.ahmed@nu.edu.pk",   32,  h3, 2);
+        addsample("25K-1004", "Hina Malik",     "AI", 6, 3.60, "hina.malik@nu.edu.pk",    80,  h4, 5);
+        addsample("25K-1005", "Usman Tariq",    "CS", 2, 3.10, "usman.tariq@nu.edu.pk",   16,  h5, 1);
+        addsample("25K-1006", "Ayesha Noor",    "SE", 7, 3.25, "ayesha.noor@nu.edu.pk",   96,  h6, 6);
+        addsample("25K-1007", "Hamza Sheikh",   "EE", 4, 2.45, "hamza.sheikh@nu.edu.pk",  48,  h7, 3);
+        addsample("25K-1008", "Zainab Fatima",  "AI", 3, 3.95, "zainab.fatima@nu.edu.pk", 32,  h8, 2);
+        addsample("25K-1009", "Omar Farooq",    "DS", 8, 2.75, "omar.farooq@nu.edu.pk",   112, h9, 7);
+        addsample("25K-1010", "Mariam Qureshi", "CS", 5, 3.30, "mariam.q@nu.edu.pk",      64,  h10, 4);
+    }
+
+    string prompttext(const string& prompt, int maxlen) {
+        while (true) {
+            string t = InputHelper::trim(InputHelper::readline(prompt));
+            if (Student::isvalidtext(t, maxlen)) return t;
+            cout << "  Error: cannot be empty, cannot contain the pipe character, and can be at most " << maxlen << " characters." << endl;
+        }
+    }
+
+    string promptemail() {
+        while (true) {
+            string t = InputHelper::trim(InputHelper::readline("Email: "));
+            if (Student::isvalidemail(t)) return t;
+            cout << "  Error: please enter a valid email (for example name@nu.edu.pk, max 40 characters)." << endl;
+        }
+    }
+
+    bool promptroll(string& roll) {
+        while (true) {
+            string t = Student::toupperstr(InputHelper::trim(InputHelper::readline("Roll Number (for example 25K-1011, 0 = cancel): ")));
+            if (t == "0") return false;
+            if (Student::isvalidrollnumber(t)) { roll = t; return true; }
+            cout << "  Error: format must be DDX-DDDD (for example 25K-1011)." << endl;
+        }
+    }
