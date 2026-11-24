@@ -1618,3 +1618,15 @@ public:
         depttable.displaykeycounts();
         delete[] arr;
     }
+
+ void showtraversals() {
+        cout << endl << "BST TRAVERSALS" << endl;
+        bst.displayinorder();
+        bst.displaypreorder();
+        bst.displaypostorder();
+    }
+
+    void showtreeinfo() {
+        cout << endl << "BST INFORMATION" << endl;
+        bst.displaytreeinfo();
+    }
