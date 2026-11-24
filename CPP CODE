@@ -1532,3 +1532,89 @@ public:
         delete[] arr;
     }
 
+ void showhashbuckets() {
+        cout << endl << "HASH TABLE (Department) - Chaining" << endl;
+        depttable.displaybuckets();
+    }
+
+    void showhighest() { cout << endl; heap.displayhighest(); }
+    void showtopk(int k) {
+        cout << endl << "TOP " << k << " MERIT LIST" << endl;
+        heap.displaytopk(k);
+    }
+
+    void sortanddisplay(int mode) {
+        int n = bst.countnodes();
+        if (n == 0) { cout << "No students to sort." << endl; return; }
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+        MergeSort::sortarray(arr, n, mode);
+        cout << endl;
+        Student::printtableheader();
+        for (int i = 0; i < n; i++) arr[i]->printrow();
+        delete[] arr;
+    }
+
+    void cgparangesearch() {
+        cout << endl << "CGPA RANGE SEARCH (Binary Search)" << endl;
+        int n = bst.countnodes();
+        if (n == 0) { cout << "No students available." << endl; return; }
+
+        double minc, maxc;
+        while (true) {
+            minc = InputHelper::readdouble("Minimum CGPA: ", 0.0, 4.0);
+            maxc = InputHelper::readdouble("Maximum CGPA: ", 0.0, 4.0);
+            if (minc <= maxc) break;
+            cout << "  Error: minimum cannot be greater than maximum." << endl;
+        }
+
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+        MergeSort::sortarray(arr, n, MergeSort::cgpa_asc);
+
+        int steps = 0;
+        int lo = lowerbound(arr, n, minc, steps);
+        int hi = upperbound(arr, n, maxc, steps);
+
+        cout << endl << fixed << setprecision(2);
+        if (lo >= hi) {
+            cout << "No student found with CGPA between " << minc << " and " << maxc << "." << endl;
+        } else {
+            Student::printtableheader();
+            for (int i = lo; i < hi; i++) arr[i]->printrow();
+            cout << endl << "Matches: " << (hi - lo) << endl;
+        }
+        cout << "Binary search comparisons: " << steps << " (linear search would need " << n << ")" << endl;
+        delete[] arr;
+    }
+
+    void showsummary() {
+        cout << endl << "STATISTICS AND REPORTS" << endl;
+        int n = bst.countnodes();
+        if (n == 0) { cout << "The database is empty." << endl; return; }
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+
+        double sum = 0.0;
+        int honor = 0, probation = 0;
+        Student* lowest = arr[0];
+        for (int i = 0; i < n; i++) {
+            double c = arr[i]->getcgpa();
+            sum += c;
+            if (c >= 3.5) honor++;
+            if (c < 2.0) probation++;
+            if (c < lowest->getcgpa()) lowest = arr[i];
+        }
+        Student* top = heap.peekmax();
+
+        cout << fixed << setprecision(2);
+        cout << "Total students        : " << n << endl;
+        cout << "Average CGPA          : " << sum / n << endl;
+        cout << "Highest CGPA          : " << top->getcgpa() << " (" << top->getname() << ")" << endl;
+        cout << "Lowest CGPA           : " << lowest->getcgpa() << " (" << lowest->getname() << ")" << endl;
+        cout << "CGPA >= 3.50          : " << honor << endl;
+        cout << "CGPA < 2.00 (risk)    : " << probation << endl;
+        cout << endl << "Department-wise count:" << endl;
+        depttable.displaykeycounts();
+        delete[] arr;
+    }
