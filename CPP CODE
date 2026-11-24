@@ -1630,3 +1630,42 @@ public:
         cout << endl << "BST INFORMATION" << endl;
         bst.displaytreeinfo();
     }
+
+void runwhatifexisting() {
+        Student* s = promptexistingstudent();
+        if (s != NULL) calculator.run(s);
+    }
+
+    void runwhatifhypothetical() {
+        calculator.run(NULL);
+    }
+
+    void runpredictor() {
+        Student* s = promptexistingstudent();
+        if (s != NULL) predictor.run(*s);
+    }
+
+    void savenow() {
+        if (filemgr.save(bst))
+            cout << bst.countnodes() << " record(s) saved to " << filemgr.getfilename() << "." << endl;
+        else
+            cout << "Error: could not save the file." << endl;
+    }
+
+    void reloadfromfile() {
+        if (!filemgr.fileexists()) {
+            cout << "students.txt does not exist. Please save first." << endl;
+            return;
+        }
+        if (!InputHelper::confirm("Discard the data in memory and reload from the file?")) return;
+        bst.clear();
+        depttable.clear();
+        nametable.clear();
+        heap.clear();
+        int bad = 0, dup = 0;
+        int loaded = filemgr.load(bst, bad, dup);
+        rebuildindexes();
+        cout << loaded << " record(s) loaded." << endl;
+        if (dup > 0) cout << "WARNING: " << dup << " duplicate Roll Number record(s) were ignored." << endl;
+        if (bad > 0) cout << "WARNING: " << bad << " invalid line(s) were ignored." << endl;
+    }
