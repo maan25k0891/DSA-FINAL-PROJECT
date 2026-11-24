@@ -231,3 +231,230 @@ void printfulldetails() const {
     cout << endl;
 }
 };
+
+class BSTNode {
+private:
+    Student  data;
+    BSTNode* left;
+    BSTNode* right;
+
+public:
+    BSTNode(const Student& s) : data(s), left(NULL), right(NULL) {}
+
+    const Student& getdata() const { return data; }
+    Student* getdataptr() { return &data; }
+    void setdata(const Student& s) { data = s; }
+
+    BSTNode* getleft() const { return left; }
+    BSTNode* getright() const { return right; }
+    void setleft(BSTNode* n) { left = n; }
+    void setright(BSTNode* n) { right = n; }
+};
+
+class BST {
+private:
+    BSTNode* root;
+    int      nodecount;
+
+    BST(const BST&);
+    BST& operator=(const BST&);
+
+    BSTNode* insertrec(BSTNode* node, const Student& s, bool& inserted) {
+        if (node == NULL) {
+            inserted = true;
+            return new BSTNode(s);
+        }
+        int cmp = s.getrollnumber().compare(node->getdata().getrollnumber());
+        if (cmp < 0)
+            node->setleft(insertrec(node->getleft(), s, inserted));
+        else if (cmp > 0)
+            node->setright(insertrec(node->getright(), s, inserted));
+        else
+            inserted = false;
+        return node;
+    }
+
+    BSTNode* searchrec(BSTNode* node, const string& roll) const {
+        if (node == NULL) return NULL;
+        int cmp = roll.compare(node->getdata().getrollnumber());
+        if (cmp == 0) return node;
+        if (cmp < 0)  return searchrec(node->getleft(), roll);
+        return searchrec(node->getright(), roll);
+    }
+
+    BSTNode* findmin(BSTNode* node) const {
+        while (node != NULL && node->getleft() != NULL)
+            node = node->getleft();
+        return node;
+    }
+
+    BSTNode* deleterec(BSTNode* node, const string& roll, bool& deleted) {
+        if (node == NULL) return NULL;
+
+        int cmp = roll.compare(node->getdata().getrollnumber());
+        if (cmp < 0) {
+            node->setleft(deleterec(node->getleft(), roll, deleted));
+        }
+        else if (cmp > 0) {
+            node->setright(deleterec(node->getright(), roll, deleted));
+        }
+        else {
+            deleted = true;
+
+            if (node->getleft() == NULL && node->getright() == NULL) {
+                delete node;
+                return NULL;
+            }
+            if (node->getleft() == NULL) {
+                BSTNode* temp = node->getright();
+                delete node;
+                return temp;
+            }
+            if (node->getright() == NULL) {
+                BSTNode* temp = node->getleft();
+                delete node;
+                return temp;
+            }
+            BSTNode* succ = findmin(node->getright());
+            string succroll = succ->getdata().getrollnumber();
+            node->setdata(succ->getdata());
+            bool dummy = false;
+            node->setright(deleterec(node->getright(), succroll, dummy));
+        }
+        return node;
+    }
+
+    void inorderrec(BSTNode* node) const {
+        if (node == NULL) return;
+        inorderrec(node->getleft());
+        cout << node->getdata().getrollnumber() << "  ";
+        inorderrec(node->getright());
+    }
+
+    void preorderrec(BSTNode* node) const {
+        if (node == NULL) return;
+        cout << node->getdata().getrollnumber() << "  ";
+        preorderrec(node->getleft());
+        preorderrec(node->getright());
+    }
+
+    void postorderrec(BSTNode* node) const {
+        if (node == NULL) return;
+        postorderrec(node->getleft());
+        postorderrec(node->getright());
+        cout << node->getdata().getrollnumber() << "  ";
+    }
+
+    void displayrec(BSTNode* node) const {
+        if (node == NULL) return;
+        displayrec(node->getleft());
+        node->getdata().printrow();
+        displayrec(node->getright());
+    }
+
+    int heightrec(BSTNode* node) const {
+        if (node == NULL) return 0;
+        int lh = heightrec(node->getleft());
+        int rh = heightrec(node->getright());
+        return 1 + (lh > rh ? lh : rh);
+    }
+
+    void destroyrec(BSTNode* node) {
+        if (node == NULL) return;
+        destroyrec(node->getleft());
+        destroyrec(node->getright());
+        delete node;
+    }
+
+    void fillarrayrec(BSTNode* node, Student** arr, int& index) const {
+        if (node == NULL) return;
+        fillarrayrec(node->getleft(), arr, index);
+        arr[index++] = node->getdataptr();
+        fillarrayrec(node->getright(), arr, index);
+    }
+
+public:
+    BST() { root = NULL; nodecount = 0; }
+    ~BST() { destroyrec(root); }
+
+    bool insert(const Student& s) {
+        bool inserted = false;
+        root = insertrec(root, s, inserted);
+        if (inserted) nodecount++;
+        return inserted;
+    }
+
+    Student* search(const string& roll) const {
+        BSTNode* n = searchrec(root, Student::toupperstr(roll));
+        if (n == NULL) return NULL;
+        return n->getdataptr();
+    }
+
+    bool exists(const string& roll) const {
+        return searchrec(root, Student::toupperstr(roll)) != NULL;
+    }
+
+    bool remove(const string& roll) {
+        bool deleted = false;
+        root = deleterec(root, Student::toupperstr(roll), deleted);
+        if (deleted) nodecount--;
+        return deleted;
+    }
+
+    void displayinorder() const {
+        cout << "Inorder   : ";
+        if (root == NULL) cout << "(empty)";
+        inorderrec(root);
+        cout << endl;
+    }
+
+    void displaypreorder() const {
+        cout << "Preorder  : ";
+        if (root == NULL) cout << "(empty)";
+        preorderrec(root);
+        cout << endl;
+    }
+
+    void displaypostorder() const {
+        cout << "Postorder : ";
+        if (root == NULL) cout << "(empty)";
+        postorderrec(root);
+        cout << endl;
+    }
+
+    void displayall() const {
+        if (root == NULL) {
+            cout << "No student records found." << endl;
+            return;
+        }
+        Student::printtableheader();
+        displayrec(root);
+    }
+
+    int  countnodes() const { return nodecount; }
+    int  height() const { return heightrec(root); }
+    bool isempty() const { return root == NULL; }
+
+    bool isskewed() const { return nodecount >= 3 && height() == nodecount; }
+
+    void displaytreeinfo() const {
+        int n = nodecount;
+        int minh = 0, total = 0, levelnodes = 1;
+        while (total < n) { total += levelnodes; levelnodes *= 2; minh++; }
+        cout << "Total nodes      : " << n << endl;
+        cout << "Tree height      : " << height() << endl;
+        cout << "Best possible    : " << minh << endl;
+        cout << "Skewed tree?     : " << (isskewed() ? "YES (performance O(n))" : "No") << endl;
+    }
+
+    void clear() {
+        destroyrec(root);
+        root = NULL;
+        nodecount = 0;
+    }
+
+    void fillarray(Student** arr) const {
+        int index = 0;
+        fillarrayrec(root, arr, index);
+    }
+};
