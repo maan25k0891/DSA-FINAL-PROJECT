@@ -1711,3 +1711,34 @@ void studentmenu(StudentManager& m) {
         InputHelper::pause();
     }
 }
+
+void departmentmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "DEPARTMENT MANAGEMENT" << endl;
+        cout << "    1. Search Students by Department" << endl << "    2. Display Department-wise Students" << endl
+             << "    3. Department-wise Count" << endl << "    4. Show Hash Table Buckets (Collisions)" << endl
+             << "    5. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 5);
+        if (c == 5) return;
+        if (c == 1) m.searchbydepartment();
+        else if (c == 2) m.showdepartmentstudents();
+        else if (c == 3) m.showdepartmentcounts();
+        else m.showhashbuckets();
+        InputHelper::pause();
+    }
+}
+
+void meritmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "MERIT LIST (Max Heap)" << endl;
+        cout << "    1. Highest CGPA" << endl << "    2. Top 3" << endl << "    3. Top 5" << endl
+             << "    4. Top 10" << endl << "    5. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 5);
+        if (c == 5) return;
+        if (c == 1) m.showhighest();
+        else if (c == 2) m.showtopk(3);
+        else if (c == 3) m.showtopk(5);
+        else m.showtopk(10);
+        InputHelper::pause();
+    }
+}
