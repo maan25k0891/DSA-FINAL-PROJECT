@@ -635,3 +635,141 @@ public:
         }
     }
 };
+
+class MaxHeap {
+private:
+    Student** arr;
+    int       size;
+    int       capacity;
+
+    MaxHeap(const MaxHeap&);
+    MaxHeap& operator=(const MaxHeap&);
+
+    int parentof(int i) const { return (i - 1) / 2; }
+    int leftof(int i) const { return 2 * i + 1; }
+    int rightof(int i) const { return 2 * i + 2; }
+
+    void swapptr(int i, int j) {
+        Student* t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+    }
+
+    bool higher(Student* a, Student* b) const {
+        if (a->getcgpa() != b->getcgpa()) return a->getcgpa() > b->getcgpa();
+        return a->getrollnumber() < b->getrollnumber();
+    }
+
+    void heapifyup(int index) {
+        while (index > 0 && higher(arr[index], arr[parentof(index)])) {
+            swapptr(index, parentof(index));
+            index = parentof(index);
+        }
+    }
+
+    void heapifydown(int index) {
+        while (true) {
+            int l = leftof(index);
+            int r = rightof(index);
+            int best = index;
+            if (l < size && higher(arr[l], arr[best])) best = l;
+            if (r < size && higher(arr[r], arr[best])) best = r;
+            if (best == index) break;
+            swapptr(index, best);
+            index = best;
+        }
+    }
+
+    void growiffull() {
+        if (size < capacity) return;
+        int newcap = capacity * 2;
+        Student** bigger = new Student*[newcap];
+        for (int i = 0; i < size; i++) bigger[i] = arr[i];
+        delete[] arr;
+        arr = bigger;
+        capacity = newcap;
+    }
+
+public:
+    MaxHeap(int initialcapacity = 16) {
+        if (initialcapacity < 1) initialcapacity = 1;
+        capacity = initialcapacity;
+        size = 0;
+        arr = new Student*[capacity];
+    }
+
+    ~MaxHeap() { delete[] arr; }
+
+    int  getsize() const { return size; }
+    bool isempty() const { return size == 0; }
+
+    void clear() { size = 0; }
+
+    void insert(Student* s) {
+        growiffull();
+        arr[size] = s;
+        size++;
+        heapifyup(size - 1);
+    }
+
+    Student* peekmax() const {
+        if (size == 0) return NULL;
+        return arr[0];
+    }
+
+    Student* extractmax() {
+        if (size == 0) return NULL;
+        Student* top = arr[0];
+        arr[0] = arr[size - 1];
+        size--;
+        heapifydown(0);
+        return top;
+    }
+
+    void buildfromarray(Student** source, int n) {
+        if (n > capacity) {
+            delete[] arr;
+            capacity = n * 2;
+            arr = new Student*[capacity];
+        }
+        for (int i = 0; i < n; i++) arr[i] = source[i];
+        size = n;
+        for (int i = n / 2 - 1; i >= 0; i--) heapifydown(i);
+    }
+
+    void clonefrom(const MaxHeap& other) {
+        if (other.size > capacity) {
+            delete[] arr;
+            capacity = other.size;
+            arr = new Student*[capacity];
+        }
+        for (int i = 0; i < other.size; i++) arr[i] = other.arr[i];
+        size = other.size;
+    }
+
+    void displayhighest() const {
+        if (size == 0) {
+            cout << "No students available." << endl;
+            return;
+        }
+        cout << "Highest CGPA:" << endl;
+        Student::printtableheader();
+        arr[0]->printrow();
+    }
+
+    void displaytopk(int k) const {
+        if (size == 0) {
+            cout << "No students available." << endl;
+            return;
+        }
+        if (k > size) k = size;
+        MaxHeap temp(size + 1);
+        temp.clonefrom(*this);
+
+        Student::printtableheader(true);
+        for (int rank = 1; rank <= k; rank++) {
+            Student* s = temp.extractmax();
+            s->printrow(rank);
+        }
+    }
+};
