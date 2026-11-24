@@ -72,3 +72,162 @@ public:
         readline("\nPress Enter to continue...");
     }
 };
+
+class Student {
+private:
+string rollnumber;
+string name;
+string department;
+int semester;
+double cgpa;
+string email;
+int completedcredithours;
+double gpahistory[max_history];
+int historycount;
+
+public:
+Student() {
+rollnumber = "";
+name = "";
+department = "";
+semester = 1;
+cgpa = 0.0;
+email = "";
+completedcredithours = 0;
+historycount = 0;
+for (int i = 0; i < max_history; i++) gpahistory[i] = 0.0;
+}
+
+Student(const string& roll, const string& n, const string& dept, int sem,
+        double c, const string& e, int credits) {
+    rollnumber = toupperstr(roll);
+    name = n;
+    department = toupperstr(dept);
+    semester = sem;
+    cgpa = c;
+    email = e;
+    completedcredithours = credits;
+    historycount = 0;
+    for (int i = 0; i < max_history; i++) gpahistory[i] = 0.0;
+}
+
+string getrollnumber() const { return rollnumber; }
+string getname() const { return name; }
+string getdepartment() const { return department; }
+int    getsemester() const { return semester; }
+double getcgpa() const { return cgpa; }
+string getemail() const { return email; }
+int    getcompletedcredithours() const { return completedcredithours; }
+int    gethistorycount() const { return historycount; }
+
+double gethistoryat(int index) const {
+    if (index < 0 || index >= historycount) return 0.0;
+    return gpahistory[index];
+}
+
+void setname(const string& n) { name = n; }
+void setdepartment(const string& d) { department = toupperstr(d); }
+void setsemester(int s) { semester = s; }
+void setcgpa(double c) { cgpa = c; }
+void setemail(const string& e) { email = e; }
+void setcompletedcredithours(int c) { completedcredithours = c; }
+
+bool addsemestergpa(double gpa) {
+    if (historycount >= max_history) return false;
+    if (!isvalidcgpa(gpa)) return false;
+    gpahistory[historycount] = gpa;
+    historycount++;
+    return true;
+}
+
+bool sethistoryat(int index, double gpa) {
+    if (index < 0 || index >= historycount) return false;
+    if (!isvalidcgpa(gpa)) return false;
+    gpahistory[index] = gpa;
+    return true;
+}
+
+void clearhistory() { historycount = 0; }
+
+static string toupperstr(const string& s) {
+    string r = s;
+    for (size_t i = 0; i < r.length(); i++)
+        r[i] = (char)toupper((unsigned char)r[i]);
+    return r;
+}
+
+static bool isvalidrollnumber(const string& r) {
+    if (r.length() != 8) return false;
+    if (!isdigit((unsigned char)r[0]) || !isdigit((unsigned char)r[1])) return false;
+    if (!isalpha((unsigned char)r[2])) return false;
+    if (r[3] != '-') return false;
+    for (int i = 4; i < 8; i++)
+        if (!isdigit((unsigned char)r[i])) return false;
+    return true;
+}
+
+static bool isvalidcgpa(double c) { return (c >= 0.0 && c <= 4.0); }
+static bool isvalidsemester(int s) { return (s >= 1 && s <= 8); }
+static bool isvalidcredits(int c) { return (c >= 0 && c <= 200); }
+
+static bool isvalidtext(const string& t, int maxlen) {
+    bool haschar = false;
+    for (size_t i = 0; i < t.length(); i++) {
+        if (t[i] == '|') return false;
+        if (!isspace((unsigned char)t[i])) haschar = true;
+    }
+    return haschar && (int)t.length() <= maxlen;
+}
+
+static bool isvalidemail(const string& e) {
+    if (e.length() == 0 || e.length() > 40) return false;
+    if (e.find(' ') != string::npos || e.find('|') != string::npos) return false;
+    size_t at = e.find('@');
+    if (at == string::npos || at == 0) return false;
+    if (e.find('@', at + 1) != string::npos) return false;
+    size_t dot = e.find('.', at + 2);
+    if (dot == string::npos || dot == e.length() - 1) return false;
+    return true;
+}
+
+static void printtableheader(bool withrank = false) {
+    cout << left;
+    if (withrank) cout << setw(6) << "Rank";
+    cout << setw(10) << "Roll No"
+         << setw(22) << "Name"
+         << setw(8)  << "Dept"
+         << setw(6)  << "Sem"
+         << setw(7)  << "CGPA"
+         << setw(9)  << "Credits"
+         << "Email" << endl;
+}
+
+void printrow(int rank = 0) const {
+    cout << left;
+    if (rank > 0) cout << setw(6) << rank;
+    cout << setw(10) << rollnumber
+         << setw(22) << name
+         << setw(8)  << department
+         << setw(6)  << semester
+         << setw(7)  << fixed << setprecision(2) << cgpa
+         << setw(9)  << completedcredithours
+         << email << endl;
+}
+
+void printfulldetails() const {
+    cout << "Roll Number : " << rollnumber << endl;
+    cout << "Name        : " << name << endl;
+    cout << "Department  : " << department << endl;
+    cout << "Semester    : " << semester << endl;
+    cout << "CGPA        : " << fixed << setprecision(2) << cgpa << endl;
+    cout << "Email       : " << email << endl;
+    cout << "Credit Hrs  : " << completedcredithours << endl;
+    cout << "GPA History : ";
+    if (historycount == 0) cout << "(none)";
+    for (int i = 0; i < historycount; i++) {
+        cout << fixed << setprecision(2) << gpahistory[i];
+        if (i < historycount - 1) cout << ", ";
+    }
+    cout << endl;
+}
+};
