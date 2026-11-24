@@ -1082,3 +1082,151 @@ public:
     }
 };
 
+class SmartAcademicPredictor {
+private:
+    int usedcount(const Student& s) const {
+        int n = s.gethistorycount();
+        return n > 3 ? 3 : n;
+    }
+
+    double weightfor(int i, int k) const {
+        double base[3] = {0.50, 0.30, 0.20};
+        double total = 0.0;
+        for (int j = 0; j < k; j++) total += base[j];
+        return base[i] / total;
+    }
+
+public:
+    void showhistory(const Student& s) const {
+        cout << endl << "GPA History: " << s.getname() << " (" << s.getrollnumber() << ")" << endl;
+        if (s.gethistorycount() == 0) {
+            cout << "No previous semester GPA records found." << endl;
+            return;
+        }
+        cout << left << setw(12) << "Result #" << "GPA" << endl;
+        for (int i = 0; i < s.gethistorycount(); i++)
+            cout << left << setw(12) << (i + 1) << fixed << setprecision(2) << s.gethistoryat(i) << endl;
+    }
+
+    string gettrend(const Student& s) const {
+        int n = s.gethistorycount();
+        if (n < 2) return "Insufficient data";
+        int k = usedcount(s);
+        double latest = s.gethistoryat(n - 1);
+        double oldest = s.gethistoryat(n - k);
+        double diff = latest - oldest;
+        if (diff > 0.10) return "Improving";
+        if (diff < -0.10) return "Declining";
+        return "Stable";
+    }
+
+    void analyze(const Student& s) const {
+        int n = s.gethistorycount();
+        cout << endl << "Performance Analysis" << endl;
+        if (n == 0) {
+            cout << "Insufficient history: at least 1 semester GPA is required for analysis." << endl;
+            return;
+        }
+        double sum = 0.0, hi = s.gethistoryat(0), lo = s.gethistoryat(0);
+        for (int i = 0; i < n; i++) {
+            double g = s.gethistoryat(i);
+            sum += g;
+            if (g > hi) hi = g;
+            if (g < lo) lo = g;
+        }
+        cout << fixed << setprecision(2);
+        cout << "Semesters recorded : " << n << endl;
+        cout << "Average GPA        : " << sum / n << endl;
+        cout << "Highest GPA        : " << hi << endl;
+        cout << "Lowest GPA         : " << lo << endl;
+        cout << "Latest GPA         : " << s.gethistoryat(n - 1) << endl;
+        cout << "Trend              : " << gettrend(s);
+        if (n >= 2) cout << "  (compared over the last " << usedcount(s) << " results, +/-0.10 threshold)";
+        cout << endl;
+    }
+
+    double predictnextgpa(const Student& s) const {
+        int n = s.gethistorycount();
+        if (n == 0) return -1.0;
+        int k = usedcount(s);
+        double result = 0.0;
+        for (int i = 0; i < k; i++)
+            result += weightfor(i, k) * s.gethistoryat(n - 1 - i);
+        if (result > 4.0) result = 4.0;
+        if (result < 0.0) result = 0.0;
+        return result;
+    }
+
+    void showprediction(const Student& s) const {
+        int n = s.gethistorycount();
+        cout << endl << "Next Semester GPA Prediction" << endl;
+        if (n == 0) {
+            cout << "Insufficient history: at least 1 semester GPA is required for prediction." << endl;
+            return;
+        }
+        int k = usedcount(s);
+        if (k < 3)
+            cout << "Note: only " << k << " result(s) available, so the weights were adjusted proportionally." << endl;
+
+        string labels[3] = {"Latest", "Previous", "Third latest"};
+        double total = 0.0;
+        cout << fixed << setprecision(3);
+        cout << left << setw(15) << "Semester" << setw(8) << "GPA" << setw(10) << "Weight" << "Contribution" << endl;
+        for (int i = 0; i < k; i++) {
+            double g = s.gethistoryat(n - 1 - i);
+            double w = weightfor(i, k);
+            cout << left << setw(15) << labels[i] << setw(8) << setprecision(2) << g
+                 << setw(10) << setprecision(3) << w << g * w << endl;
+            total += g * w;
+        }
+        cout << "Predicted next semester GPA = " << setprecision(2) << predictnextgpa(s) << endl;
+        cout << endl << "IMPORTANT: This is only an ESTIMATE, not a guaranteed result." << endl;
+        cout << "The actual record is not changed by this prediction." << endl;
+    }
+
+    void showrecommendations(const Student& s) const {
+        cout << endl << "Academic Recommendations" << endl;
+        double p = predictnextgpa(s);
+        if (p < 0.0) {
+            cout << "Recommendations cannot be given because there is no history." << endl;
+            cout << "Please add semester GPA history first (Student Management > Update)." << endl;
+            return;
+        }
+        string trend = gettrend(s);
+
+        if (trend == "Improving")
+            cout << "- You are improving. Keep up the same study routine." << endl;
+        else if (trend == "Declining")
+            cout << "- Your GPA is declining. Identify weak courses and get help from a teacher or tutor." << endl;
+        else if (trend == "Stable")
+            cout << "- Performance is stable. A little extra effort can raise your GPA." << endl;
+        else
+            cout << "- More semester data is needed to determine a trend." << endl;
+
+        if (p >= 3.5)       cout << "- Predicted GPA is excellent: aim for the Dean's List or a scholarship." << endl;
+        else if (p >= 3.0)  cout << "- Predicted GPA is good: with a little more effort you can go above 3.5." << endl;
+        else if (p >= 2.0)  cout << "- Predicted GPA is weak: focus on a regular study plan and attendance." << endl;
+        else                cout << "- Predicted GPA is at risk: consult your advisor immediately." << endl;
+
+        if (s.getcgpa() < 2.0)
+            cout << "- CGPA is below 2.00: there is a risk of academic probation." << endl;
+        cout << "(This is only an estimate, not guaranteed.)" << endl;
+    }
+
+    void run(const Student& s) {
+        while (true) {
+            cout << endl << "SMART ACADEMIC PREDICTOR : " << s.getname() << "" << endl;
+            cout << "    1. View GPA History" << endl;
+            cout << "    2. Analyze Performance and Trend" << endl;
+            cout << "    3. Predict Next Semester GPA (with calculation)" << endl;
+            cout << "    4. Academic Recommendations" << endl;
+            cout << "    5. Back" << endl;
+            int c = InputHelper::readint("Choice: ", 1, 5);
+            if (c == 5) return;
+            if (c == 1) showhistory(s);
+            else if (c == 2) analyze(s);
+            else if (c == 3) showprediction(s);
+            else showrecommendations(s);
+        }
+    }
+};
