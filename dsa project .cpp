@@ -1,0 +1,1845 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <iomanip>
+#include <limits>
+#include <cmath>
+#include <cstring>
+#include <cctype>
+#include <cstdlib>
+using namespace std;
+
+const int max_history     = 12;
+const int hash_table_size = 11;
+
+class InputHelper {
+public:
+    static string trim(const string& s) {
+        size_t a = 0, b = s.length();
+        while (a < b && isspace((unsigned char)s[a])) a++;
+        while (b > a && isspace((unsigned char)s[b - 1])) b--;
+        return s.substr(a, b - a);
+    }
+
+    static string readline(const string& prompt) {
+        cout << prompt;
+        string line;
+        if (!getline(cin, line)) {
+            cout << endl << "Input closed. Exiting the program." << endl;
+            exit(0);
+        }
+        return line;
+    }
+
+    static int readint(const string& prompt, int minv, int maxv) {
+        while (true) {
+            string t = trim(readline(prompt));
+            char* end = NULL;
+            long v = strtol(t.c_str(), &end, 10);
+            if (t.empty() || *end != '\0')
+                cout << "  Error: please enter a whole number." << endl;
+            else if (v < minv || v > maxv)
+                cout << "  Error: value must be between " << minv << " and " << maxv << "." << endl;
+            else
+                return (int)v;
+        }
+    }
+
+    static double readdouble(const string& prompt, double minv, double maxv) {
+        while (true) {
+            string t = trim(readline(prompt));
+            char* end = NULL;
+            double v = strtod(t.c_str(), &end);
+            if (t.empty() || *end != '\0')
+                cout << "  Error: please enter a number (for example 3.25)." << endl;
+            else if (!(v >= minv && v <= maxv))
+                cout << "  Error: value must be between " << minv << " and " << maxv << "." << endl;
+            else
+                return v;
+        }
+    }
+
+    static bool confirm(const string& prompt) {
+        while (true) {
+            string t = trim(readline(prompt + " (y/n): "));
+            if (t == "y" || t == "Y") return true;
+            if (t == "n" || t == "N") return false;
+            cout << "  Error: please enter y or n." << endl;
+        }
+    }
+
+    static void pause() {
+        readline("\nPress Enter to continue...");
+    }
+};
+
+class Student {
+private:
+    string rollnumber;
+    string name;
+    string department;
+    int    semester;
+    double cgpa;
+    string email;
+    int    completedcredithours;
+    double gpahistory[max_history];
+    int    historycount;
+
+public:
+    Student() {
+        rollnumber = "";
+        name = "";
+        department = "";
+        semester = 1;
+        cgpa = 0.0;
+        email = "";
+        completedcredithours = 0;
+        historycount = 0;
+        for (int i = 0; i < max_history; i++) gpahistory[i] = 0.0;
+    }
+
+    Student(const string& roll, const string& n, const string& dept, int sem,
+            double c, const string& e, int credits) {
+        rollnumber = toupperstr(roll);
+        name = n;
+        department = toupperstr(dept);
+        semester = sem;
+        cgpa = c;
+        email = e;
+        completedcredithours = credits;
+        historycount = 0;
+        for (int i = 0; i < max_history; i++) gpahistory[i] = 0.0;
+    }
+
+    string getrollnumber() const { return rollnumber; }
+    string getname() const { return name; }
+    string getdepartment() const { return department; }
+    int    getsemester() const { return semester; }
+    double getcgpa() const { return cgpa; }
+    string getemail() const { return email; }
+    int    getcompletedcredithours() const { return completedcredithours; }
+    int    gethistorycount() const { return historycount; }
+
+    double gethistoryat(int index) const {
+        if (index < 0 || index >= historycount) return 0.0;
+        return gpahistory[index];
+    }
+
+    void setname(const string& n) { name = n; }
+    void setdepartment(const string& d) { department = toupperstr(d); }
+    void setsemester(int s) { semester = s; }
+    void setcgpa(double c) { cgpa = c; }
+    void setemail(const string& e) { email = e; }
+    void setcompletedcredithours(int c) { completedcredithours = c; }
+
+    bool addsemestergpa(double gpa) {
+        if (historycount >= max_history) return false;
+        if (!isvalidcgpa(gpa)) return false;
+        gpahistory[historycount] = gpa;
+        historycount++;
+        return true;
+    }
+
+    bool sethistoryat(int index, double gpa) {
+        if (index < 0 || index >= historycount) return false;
+        if (!isvalidcgpa(gpa)) return false;
+        gpahistory[index] = gpa;
+        return true;
+    }
+
+    void clearhistory() { historycount = 0; }
+
+    static string toupperstr(const string& s) {
+        string r = s;
+        for (size_t i = 0; i < r.length(); i++)
+            r[i] = (char)toupper((unsigned char)r[i]);
+        return r;
+    }
+
+    static bool isvalidrollnumber(const string& r) {
+        if (r.length() != 8) return false;
+        if (!isdigit((unsigned char)r[0]) || !isdigit((unsigned char)r[1])) return false;
+        if (!isalpha((unsigned char)r[2])) return false;
+        if (r[3] != '-') return false;
+        for (int i = 4; i < 8; i++)
+            if (!isdigit((unsigned char)r[i])) return false;
+        return true;
+    }
+
+    static bool isvalidcgpa(double c) { return (c >= 0.0 && c <= 4.0); }
+    static bool isvalidsemester(int s) { return (s >= 1 && s <= 8); }
+    static bool isvalidcredits(int c) { return (c >= 0 && c <= 200); }
+
+    static bool isvalidtext(const string& t, int maxlen) {
+        bool haschar = false;
+        for (size_t i = 0; i < t.length(); i++) {
+            if (t[i] == '|') return false;
+            if (!isspace((unsigned char)t[i])) haschar = true;
+        }
+        return haschar && (int)t.length() <= maxlen;
+    }
+
+    static bool isvalidemail(const string& e) {
+        if (e.length() == 0 || e.length() > 40) return false;
+        if (e.find(' ') != string::npos || e.find('|') != string::npos) return false;
+        size_t at = e.find('@');
+        if (at == string::npos || at == 0) return false;
+        if (e.find('@', at + 1) != string::npos) return false;
+        size_t dot = e.find('.', at + 2);
+        if (dot == string::npos || dot == e.length() - 1) return false;
+        return true;
+    }
+
+    static void printtableheader(bool withrank = false) {
+        cout << left;
+        if (withrank) cout << setw(6) << "Rank";
+        cout << setw(10) << "Roll No"
+             << setw(22) << "Name"
+             << setw(8)  << "Dept"
+             << setw(6)  << "Sem"
+             << setw(7)  << "CGPA"
+             << setw(9)  << "Credits"
+             << "Email" << endl;
+    }
+
+    void printrow(int rank = 0) const {
+        cout << left;
+        if (rank > 0) cout << setw(6) << rank;
+        cout << setw(10) << rollnumber
+             << setw(22) << name
+             << setw(8)  << department
+             << setw(6)  << semester
+             << setw(7)  << fixed << setprecision(2) << cgpa
+             << setw(9)  << completedcredithours
+             << email << endl;
+    }
+
+    void printfulldetails() const {
+        cout << "Roll Number : " << rollnumber << endl;
+        cout << "Name        : " << name << endl;
+        cout << "Department  : " << department << endl;
+        cout << "Semester    : " << semester << endl;
+        cout << "CGPA        : " << fixed << setprecision(2) << cgpa << endl;
+        cout << "Email       : " << email << endl;
+        cout << "Credit Hrs  : " << completedcredithours << endl;
+        cout << "GPA History : ";
+        if (historycount == 0) cout << "(none)";
+        for (int i = 0; i < historycount; i++) {
+            cout << fixed << setprecision(2) << gpahistory[i];
+            if (i < historycount - 1) cout << ", ";
+        }
+        cout << endl;
+    }
+};
+
+class BSTNode {
+private:
+    Student  data;
+    BSTNode* left;
+    BSTNode* right;
+
+public:
+    BSTNode(const Student& s) : data(s), left(NULL), right(NULL) {}
+
+    const Student& getdata() const { return data; }
+    Student* getdataptr() { return &data; }
+    void setdata(const Student& s) { data = s; }
+
+    BSTNode* getleft() const { return left; }
+    BSTNode* getright() const { return right; }
+    void setleft(BSTNode* n) { left = n; }
+    void setright(BSTNode* n) { right = n; }
+};
+
+class BST {
+private:
+    BSTNode* root;
+    int      nodecount;
+
+    BST(const BST&);
+    BST& operator=(const BST&);
+
+    BSTNode* insertrec(BSTNode* node, const Student& s, bool& inserted) {
+        if (node == NULL) {
+            inserted = true;
+            return new BSTNode(s);
+        }
+        int cmp = s.getrollnumber().compare(node->getdata().getrollnumber());
+        if (cmp < 0)
+            node->setleft(insertrec(node->getleft(), s, inserted));
+        else if (cmp > 0)
+            node->setright(insertrec(node->getright(), s, inserted));
+        else
+            inserted = false;
+        return node;
+    }
+
+    BSTNode* searchrec(BSTNode* node, const string& roll) const {
+        if (node == NULL) return NULL;
+        int cmp = roll.compare(node->getdata().getrollnumber());
+        if (cmp == 0) return node;
+        if (cmp < 0)  return searchrec(node->getleft(), roll);
+        return searchrec(node->getright(), roll);
+    }
+
+    BSTNode* findmin(BSTNode* node) const {
+        while (node != NULL && node->getleft() != NULL)
+            node = node->getleft();
+        return node;
+    }
+
+    BSTNode* deleterec(BSTNode* node, const string& roll, bool& deleted) {
+        if (node == NULL) return NULL;
+
+        int cmp = roll.compare(node->getdata().getrollnumber());
+        if (cmp < 0) {
+            node->setleft(deleterec(node->getleft(), roll, deleted));
+        }
+        else if (cmp > 0) {
+            node->setright(deleterec(node->getright(), roll, deleted));
+        }
+        else {
+            deleted = true;
+
+            if (node->getleft() == NULL && node->getright() == NULL) {
+                delete node;
+                return NULL;
+            }
+            if (node->getleft() == NULL) {
+                BSTNode* temp = node->getright();
+                delete node;
+                return temp;
+            }
+            if (node->getright() == NULL) {
+                BSTNode* temp = node->getleft();
+                delete node;
+                return temp;
+            }
+            BSTNode* succ = findmin(node->getright());
+            string succroll = succ->getdata().getrollnumber();
+            node->setdata(succ->getdata());
+            bool dummy = false;
+            node->setright(deleterec(node->getright(), succroll, dummy));
+        }
+        return node;
+    }
+
+    void inorderrec(BSTNode* node) const {
+        if (node == NULL) return;
+        inorderrec(node->getleft());
+        cout << node->getdata().getrollnumber() << "  ";
+        inorderrec(node->getright());
+    }
+
+    void preorderrec(BSTNode* node) const {
+        if (node == NULL) return;
+        cout << node->getdata().getrollnumber() << "  ";
+        preorderrec(node->getleft());
+        preorderrec(node->getright());
+    }
+
+    void postorderrec(BSTNode* node) const {
+        if (node == NULL) return;
+        postorderrec(node->getleft());
+        postorderrec(node->getright());
+        cout << node->getdata().getrollnumber() << "  ";
+    }
+
+    void displayrec(BSTNode* node) const {
+        if (node == NULL) return;
+        displayrec(node->getleft());
+        node->getdata().printrow();
+        displayrec(node->getright());
+    }
+
+    int heightrec(BSTNode* node) const {
+        if (node == NULL) return 0;
+        int lh = heightrec(node->getleft());
+        int rh = heightrec(node->getright());
+        return 1 + (lh > rh ? lh : rh);
+    }
+
+    void destroyrec(BSTNode* node) {
+        if (node == NULL) return;
+        destroyrec(node->getleft());
+        destroyrec(node->getright());
+        delete node;
+    }
+
+    void fillarrayrec(BSTNode* node, Student** arr, int& index) const {
+        if (node == NULL) return;
+        fillarrayrec(node->getleft(), arr, index);
+        arr[index++] = node->getdataptr();
+        fillarrayrec(node->getright(), arr, index);
+    }
+
+public:
+    BST() { root = NULL; nodecount = 0; }
+    ~BST() { destroyrec(root); }
+
+    bool insert(const Student& s) {
+        bool inserted = false;
+        root = insertrec(root, s, inserted);
+        if (inserted) nodecount++;
+        return inserted;
+    }
+
+    Student* search(const string& roll) const {
+        BSTNode* n = searchrec(root, Student::toupperstr(roll));
+        if (n == NULL) return NULL;
+        return n->getdataptr();
+    }
+
+    bool exists(const string& roll) const {
+        return searchrec(root, Student::toupperstr(roll)) != NULL;
+    }
+
+    bool remove(const string& roll) {
+        bool deleted = false;
+        root = deleterec(root, Student::toupperstr(roll), deleted);
+        if (deleted) nodecount--;
+        return deleted;
+    }
+
+    void displayinorder() const {
+        cout << "Inorder   : ";
+        if (root == NULL) cout << "(empty)";
+        inorderrec(root);
+        cout << endl;
+    }
+
+    void displaypreorder() const {
+        cout << "Preorder  : ";
+        if (root == NULL) cout << "(empty)";
+        preorderrec(root);
+        cout << endl;
+    }
+
+    void displaypostorder() const {
+        cout << "Postorder : ";
+        if (root == NULL) cout << "(empty)";
+        postorderrec(root);
+        cout << endl;
+    }
+
+    void displayall() const {
+        if (root == NULL) {
+            cout << "No student records found." << endl;
+            return;
+        }
+        Student::printtableheader();
+        displayrec(root);
+    }
+
+    int  countnodes() const { return nodecount; }
+    int  height() const { return heightrec(root); }
+    bool isempty() const { return root == NULL; }
+
+    bool isskewed() const { return nodecount >= 3 && height() == nodecount; }
+
+    void displaytreeinfo() const {
+        int n = nodecount;
+        int minh = 0, total = 0, levelnodes = 1;
+        while (total < n) { total += levelnodes; levelnodes *= 2; minh++; }
+        cout << "Total nodes      : " << n << endl;
+        cout << "Tree height      : " << height() << endl;
+        cout << "Best possible    : " << minh << endl;
+        cout << "Skewed tree?     : " << (isskewed() ? "YES (performance O(n))" : "No") << endl;
+    }
+
+    void clear() {
+        destroyrec(root);
+        root = NULL;
+        nodecount = 0;
+    }
+
+    void fillarray(Student** arr) const {
+        int index = 0;
+        fillarrayrec(root, arr, index);
+    }
+};
+
+class LinkedListNode {
+private:
+    Student*        student;
+    LinkedListNode* next;
+
+public:
+    LinkedListNode(Student* s) : student(s), next(NULL) {}
+
+    Student* getstudent() const { return student; }
+    LinkedListNode* getnext() const { return next; }
+    void setnext(LinkedListNode* n) { next = n; }
+};
+
+class HashTable {
+private:
+    LinkedListNode* table[hash_table_size];
+    bool            usename;
+
+    HashTable(const HashTable&);
+    HashTable& operator=(const HashTable&);
+
+    static string tolowerstr(const string& s) {
+        string r = s;
+        for (size_t i = 0; i < r.length(); i++)
+            r[i] = (char)tolower((unsigned char)r[i]);
+        return r;
+    }
+
+    string getkey(Student* s) const {
+        return usename ? s->getname() : s->getdepartment();
+    }
+
+    int hashfunction(const string& key) const {
+        string k = tolowerstr(key);
+        unsigned long h = 0;
+        for (size_t i = 0; i < k.length(); i++)
+            h = (h * 31 + (unsigned char)k[i]) % hash_table_size;
+        return (int)h;
+    }
+
+public:
+    HashTable(bool keyisname = false) {
+        usename = keyisname;
+        for (int i = 0; i < hash_table_size; i++) table[i] = NULL;
+    }
+
+    ~HashTable() { clear(); }
+
+    void clear() {
+        for (int i = 0; i < hash_table_size; i++) {
+            LinkedListNode* cur = table[i];
+            while (cur != NULL) {
+                LinkedListNode* nextnode = cur->getnext();
+                delete cur;
+                cur = nextnode;
+            }
+            table[i] = NULL;
+        }
+    }
+
+    void insert(Student* s) {
+        int idx = hashfunction(getkey(s));
+        LinkedListNode* node = new LinkedListNode(s);
+        node->setnext(table[idx]);
+        table[idx] = node;
+    }
+
+    bool remove(const string& rollinput) {
+        string roll = Student::toupperstr(rollinput);
+        for (int i = 0; i < hash_table_size; i++) {
+            LinkedListNode* cur = table[i];
+            LinkedListNode* prev = NULL;
+            while (cur != NULL) {
+                if (cur->getstudent()->getrollnumber() == roll) {
+                    if (prev == NULL) table[i] = cur->getnext();
+                    else              prev->setnext(cur->getnext());
+                    delete cur;
+                    return true;
+                }
+                prev = cur;
+                cur = cur->getnext();
+            }
+        }
+        return false;
+    }
+
+    int searchanddisplay(const string& key) const {
+        int idx = hashfunction(key);
+        string target = tolowerstr(key);
+        int found = 0;
+        LinkedListNode* cur = table[idx];
+        while (cur != NULL) {
+            if (tolowerstr(getkey(cur->getstudent())) == target) {
+                if (found == 0) Student::printtableheader();
+                cur->getstudent()->printrow();
+                found++;
+            }
+            cur = cur->getnext();
+        }
+        return found;
+    }
+
+    int countbykey(const string& key) const {
+        int idx = hashfunction(key);
+        string target = tolowerstr(key);
+        int count = 0;
+        LinkedListNode* cur = table[idx];
+        while (cur != NULL) {
+            if (tolowerstr(getkey(cur->getstudent())) == target) count++;
+            cur = cur->getnext();
+        }
+        return count;
+    }
+
+    int chainlength(int bucket) const {
+        if (bucket < 0 || bucket >= hash_table_size) return 0;
+        int len = 0;
+        LinkedListNode* cur = table[bucket];
+        while (cur != NULL) { len++; cur = cur->getnext(); }
+        return len;
+    }
+
+    int totalentries() const {
+        int total = 0;
+        for (int i = 0; i < hash_table_size; i++) total += chainlength(i);
+        return total;
+    }
+
+    void displaykeycounts() const {
+        if (totalentries() == 0) {
+            cout << "No records found." << endl;
+            return;
+        }
+        cout << left << setw(15) << (usename ? "Name" : "Department") << "Students" << endl;
+
+        for (int i = 0; i < hash_table_size; i++) {
+            LinkedListNode* cur = table[i];
+            while (cur != NULL) {
+                string k = tolowerstr(getkey(cur->getstudent()));
+
+                bool seenbefore = false;
+                LinkedListNode* earlier = table[i];
+                while (earlier != cur) {
+                    if (tolowerstr(getkey(earlier->getstudent())) == k) { seenbefore = true; break; }
+                    earlier = earlier->getnext();
+                }
+
+                if (!seenbefore) {
+                    int count = 0;
+                    LinkedListNode* scan = cur;
+                    while (scan != NULL) {
+                        if (tolowerstr(getkey(scan->getstudent())) == k) count++;
+                        scan = scan->getnext();
+                    }
+                    cout << left << setw(15) << getkey(cur->getstudent()) << count << endl;
+                }
+                cur = cur->getnext();
+            }
+        }
+    }
+
+    void displaybuckets() const {
+        for (int i = 0; i < hash_table_size; i++) {
+            cout << "Bucket " << setw(2) << i << " [" << chainlength(i) << "] : ";
+            LinkedListNode* cur = table[i];
+            if (cur == NULL) cout << "(empty)";
+            while (cur != NULL) {
+                cout << cur->getstudent()->getrollnumber()
+                     << "(" << getkey(cur->getstudent()) << ")";
+                if (cur->getnext() != NULL) cout << " -> ";
+                cur = cur->getnext();
+            }
+            cout << endl;
+        }
+    }
+};
+
+class MaxHeap {
+private:
+    Student** arr;
+    int       size;
+    int       capacity;
+
+    MaxHeap(const MaxHeap&);
+    MaxHeap& operator=(const MaxHeap&);
+
+    int parentof(int i) const { return (i - 1) / 2; }
+    int leftof(int i) const { return 2 * i + 1; }
+    int rightof(int i) const { return 2 * i + 2; }
+
+    void swapptr(int i, int j) {
+        Student* t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+    }
+
+    bool higher(Student* a, Student* b) const {
+        if (a->getcgpa() != b->getcgpa()) return a->getcgpa() > b->getcgpa();
+        return a->getrollnumber() < b->getrollnumber();
+    }
+
+    void heapifyup(int index) {
+        while (index > 0 && higher(arr[index], arr[parentof(index)])) {
+            swapptr(index, parentof(index));
+            index = parentof(index);
+        }
+    }
+
+    void heapifydown(int index) {
+        while (true) {
+            int l = leftof(index);
+            int r = rightof(index);
+            int best = index;
+            if (l < size && higher(arr[l], arr[best])) best = l;
+            if (r < size && higher(arr[r], arr[best])) best = r;
+            if (best == index) break;
+            swapptr(index, best);
+            index = best;
+        }
+    }
+
+    void growiffull() {
+        if (size < capacity) return;
+        int newcap = capacity * 2;
+        Student** bigger = new Student*[newcap];
+        for (int i = 0; i < size; i++) bigger[i] = arr[i];
+        delete[] arr;
+        arr = bigger;
+        capacity = newcap;
+    }
+
+public:
+    MaxHeap(int initialcapacity = 16) {
+        if (initialcapacity < 1) initialcapacity = 1;
+        capacity = initialcapacity;
+        size = 0;
+        arr = new Student*[capacity];
+    }
+
+    ~MaxHeap() { delete[] arr; }
+
+    int  getsize() const { return size; }
+    bool isempty() const { return size == 0; }
+
+    void clear() { size = 0; }
+
+    void insert(Student* s) {
+        growiffull();
+        arr[size] = s;
+        size++;
+        heapifyup(size - 1);
+    }
+
+    Student* peekmax() const {
+        if (size == 0) return NULL;
+        return arr[0];
+    }
+
+    Student* extractmax() {
+        if (size == 0) return NULL;
+        Student* top = arr[0];
+        arr[0] = arr[size - 1];
+        size--;
+        heapifydown(0);
+        return top;
+    }
+
+    void buildfromarray(Student** source, int n) {
+        if (n > capacity) {
+            delete[] arr;
+            capacity = n * 2;
+            arr = new Student*[capacity];
+        }
+        for (int i = 0; i < n; i++) arr[i] = source[i];
+        size = n;
+        for (int i = n / 2 - 1; i >= 0; i--) heapifydown(i);
+    }
+
+    void clonefrom(const MaxHeap& other) {
+        if (other.size > capacity) {
+            delete[] arr;
+            capacity = other.size;
+            arr = new Student*[capacity];
+        }
+        for (int i = 0; i < other.size; i++) arr[i] = other.arr[i];
+        size = other.size;
+    }
+
+    void displayhighest() const {
+        if (size == 0) {
+            cout << "No students available." << endl;
+            return;
+        }
+        cout << "Highest CGPA:" << endl;
+        Student::printtableheader();
+        arr[0]->printrow();
+    }
+
+    void displaytopk(int k) const {
+        if (size == 0) {
+            cout << "No students available." << endl;
+            return;
+        }
+        if (k > size) k = size;
+        MaxHeap temp(size + 1);
+        temp.clonefrom(*this);
+
+        Student::printtableheader(true);
+        for (int rank = 1; rank <= k; rank++) {
+            Student* s = temp.extractmax();
+            s->printrow(rank);
+        }
+    }
+};
+
+class MergeSort {
+public:
+    enum SortMode { name_asc = 1, name_desc = 2, cgpa_asc = 3, cgpa_desc = 4, roll_asc = 5 };
+
+private:
+    static string lowerstr(const string& s) {
+        string r = s;
+        for (size_t i = 0; i < r.length(); i++)
+            r[i] = (char)tolower((unsigned char)r[i]);
+        return r;
+    }
+
+    static bool inorder(Student* a, Student* b, int mode) {
+        switch (mode) {
+            case name_asc: {
+                string x = lowerstr(a->getname());
+                string y = lowerstr(b->getname());
+                return x.compare(y) <= 0;
+            }
+            case name_desc: {
+                string x = lowerstr(a->getname());
+                string y = lowerstr(b->getname());
+                return x.compare(y) >= 0;
+            }
+            case cgpa_asc:  return a->getcgpa() <= b->getcgpa();
+            case cgpa_desc: return a->getcgpa() >= b->getcgpa();
+            default:        return a->getrollnumber().compare(b->getrollnumber()) <= 0;
+        }
+    }
+
+    static void mergeparts(Student** arr, Student** temp, int left, int mid, int right, int mode) {
+        int i = left, j = mid + 1, k = left;
+        while (i <= mid && j <= right) {
+            if (inorder(arr[i], arr[j], mode)) temp[k++] = arr[i++];
+            else                               temp[k++] = arr[j++];
+        }
+        while (i <= mid)   temp[k++] = arr[i++];
+        while (j <= right) temp[k++] = arr[j++];
+        for (k = left; k <= right; k++) arr[k] = temp[k];
+    }
+
+    static void mergerec(Student** arr, Student** temp, int left, int right, int mode) {
+        if (left >= right) return;
+        int mid = left + (right - left) / 2;
+        mergerec(arr, temp, left, mid, mode);
+        mergerec(arr, temp, mid + 1, right, mode);
+        mergeparts(arr, temp, left, mid, right, mode);
+    }
+
+public:
+    static void sortarray(Student** arr, int n, int mode) {
+        if (n <= 1) return;
+        Student** temp = new Student*[n];
+        mergerec(arr, temp, 0, n - 1, mode);
+        delete[] temp;
+    }
+};
+
+class FileManager {
+private:
+    string filename;
+
+    static bool parseint(const string& t, int& out) {
+        string s = InputHelper::trim(t);
+        if (s.empty()) return false;
+        char* end = NULL;
+        long v = strtol(s.c_str(), &end, 10);
+        if (*end != '\0') return false;
+        out = (int)v;
+        return true;
+    }
+
+    static bool parsedouble(const string& t, double& out) {
+        string s = InputHelper::trim(t);
+        if (s.empty()) return false;
+        char* end = NULL;
+        double v = strtod(s.c_str(), &end);
+        if (*end != '\0') return false;
+        out = v;
+        return true;
+    }
+
+    static int splitfields(const string& line, string f[], int maxf) {
+        int count = 0;
+        string cur = "";
+        for (size_t i = 0; i < line.length(); i++) {
+            if (line[i] == '|' && count < maxf - 1) {
+                f[count++] = cur;
+                cur = "";
+            } else {
+                cur += line[i];
+            }
+        }
+        f[count++] = cur;
+        return count;
+    }
+
+    int processline(const string& line, BST& tree, bool& wasduplicate) {
+        wasduplicate = false;
+        string f[9];
+        int n = splitfields(line, f, 9);
+        if (n < 8) return 0;
+
+        string roll = Student::toupperstr(InputHelper::trim(f[0]));
+        string name = InputHelper::trim(f[1]);
+        string dept = InputHelper::trim(f[2]);
+        string email = InputHelper::trim(f[5]);
+        int sem = 0, credits = 0, hcount = 0;
+        double cg = 0.0;
+
+        if (!Student::isvalidrollnumber(roll)) return 0;
+        if (!Student::isvalidtext(name, 20)) return 0;
+        if (!Student::isvalidtext(dept, 6)) return 0;
+        if (!parseint(f[3], sem) || !Student::isvalidsemester(sem)) return 0;
+        if (!parsedouble(f[4], cg) || !Student::isvalidcgpa(cg)) return 0;
+        if (!Student::isvalidemail(email)) return 0;
+        if (!parseint(f[6], credits) || !Student::isvalidcredits(credits)) return 0;
+        if (!parseint(f[7], hcount) || hcount < 0 || hcount > max_history) return 0;
+
+        Student s(roll, name, dept, sem, cg, email, credits);
+
+        if (hcount > 0) {
+            if (n < 9) return 0;
+            string list = f[8];
+            int added = 0;
+            string token = "";
+            for (size_t i = 0; i <= list.length(); i++) {
+                if (i == list.length() || list[i] == ',') {
+                    double g = 0.0;
+                    if (!parsedouble(token, g)) return 0;
+                    if (!s.addsemestergpa(g)) return 0;
+                    added++;
+                    token = "";
+                } else {
+                    token += list[i];
+                }
+            }
+            if (added != hcount) return 0;
+        }
+
+        if (!tree.insert(s)) {
+            wasduplicate = true;
+            return 0;
+        }
+        return 1;
+    }
+
+public:
+    FileManager(const string& fname) : filename(fname) {}
+
+    string getfilename() const { return filename; }
+
+    bool fileexists() const {
+        ifstream in(filename.c_str());
+        return in.good();
+    }
+
+    bool save(const BST& tree) const {
+        ofstream out(filename.c_str());
+        if (!out) return false;
+
+        int n = tree.countnodes();
+        if (n > 0) {
+            Student** arr = new Student*[n];
+            tree.fillarray(arr);
+            for (int i = 0; i < n; i++) {
+                Student* s = arr[i];
+                out << s->getrollnumber() << "|" << s->getname() << "|"
+                    << s->getdepartment() << "|" << s->getsemester() << "|"
+                    << fixed << setprecision(2) << s->getcgpa() << "|"
+                    << s->getemail() << "|" << s->getcompletedcredithours() << "|"
+                    << s->gethistorycount() << "|";
+                for (int h = 0; h < s->gethistorycount(); h++) {
+                    out << fixed << setprecision(2) << s->gethistoryat(h);
+                    if (h < s->gethistorycount() - 1) out << ",";
+                }
+                out << "\n";
+            }
+            delete[] arr;
+        }
+        out.close();
+        return true;
+    }
+
+    int load(BST& tree, int& skippedinvalid, int& skippedduplicate) {
+        skippedinvalid = 0;
+        skippedduplicate = 0;
+        ifstream in(filename.c_str());
+        if (!in) return -1;
+
+        int loaded = 0;
+        string line;
+        while (getline(in, line)) {
+            if (!line.empty() && line[line.length() - 1] == '\r')
+                line.erase(line.length() - 1);
+            if (InputHelper::trim(line).empty()) continue;
+
+            bool dup = false;
+            if (processline(line, tree, dup) == 1) loaded++;
+            else if (dup) skippedduplicate++;
+            else skippedinvalid++;
+        }
+        return loaded;
+    }
+};
+
+class WhatIfCGPACalculator {
+private:
+    double currentcgpa;
+    int    completedcredits;
+    int    nextcredits;
+
+    double requiredgpa(double target) const {
+        double total = completedcredits + nextcredits;
+        return ((target * total) - (currentcgpa * completedcredits)) / nextcredits;
+    }
+
+    double projectedcgpa(double gpa) const {
+        double total = completedcredits + nextcredits;
+        return ((currentcgpa * completedcredits) + (gpa * nextcredits)) / total;
+    }
+
+    void showrequired() const {
+        double target = InputHelper::readdouble("Target CGPA (0.00 - 4.00): ", 0.0, 4.0);
+        double req = requiredgpa(target);
+
+        cout << endl << "Calculation" << endl;
+        cout << "Required GPA = ((" << fixed << setprecision(2) << target << " x ("
+             << completedcredits << " + " << nextcredits << ")) - ("
+             << currentcgpa << " x " << completedcredits << ")) / " << nextcredits << endl;
+        cout << "Required GPA = " << setprecision(3) << req << endl << endl;
+
+        if (req > 4.0 + 1e-9) {
+            cout << "Result: TARGET NOT ACHIEVABLE next semester." << endl;
+            cout << "Even with a perfect 4.00 GPA, the maximum possible CGPA is "
+                 << setprecision(2) << projectedcgpa(4.0) << "." << endl;
+        } else if (req <= 0.0) {
+            cout << "Result: ACHIEVABLE - the target is already safe." << endl;
+            cout << "Even with a 0.00 GPA next semester, the CGPA would stay at "
+                 << setprecision(2) << projectedcgpa(0.0) << " (above the target)." << endl;
+        } else {
+            cout << "Result: ACHIEVABLE. You need at least " << setprecision(2) << req
+                 << " GPA." << endl;
+            if (req <= 2.5)       cout << "Difficulty level: Easy" << endl;
+            else if (req <= 3.3)  cout << "Difficulty level: Moderate" << endl;
+            else if (req <= 3.7)  cout << "Difficulty level: Hard" << endl;
+            else                  cout << "Difficulty level: Very hard" << endl;
+        }
+    }
+
+    void showprojected() const {
+        double gpa = InputHelper::readdouble("Expected next semester GPA (0.00 - 4.00): ", 0.0, 4.0);
+        double proj = projectedcgpa(gpa);
+        cout << endl << "Calculation" << endl;
+        cout << "Projected CGPA = ((" << fixed << setprecision(2) << currentcgpa << " x "
+             << completedcredits << ") + (" << gpa << " x " << nextcredits << ")) / ("
+             << completedcredits << " + " << nextcredits << ")" << endl;
+        cout << "Projected CGPA = " << setprecision(2) << proj << endl;
+        double diff = proj - currentcgpa;
+        cout << "Change         = " << (diff >= 0 ? "+" : "") << diff << endl;
+    }
+
+    void showscenarios() const {
+        double gpas[8] = {4.00, 3.70, 3.30, 3.00, 2.70, 2.30, 2.00, 1.00};
+        cout << endl << left << setw(16) << "Semester GPA" << setw(16) << "Projected CGPA"
+             << "Change" << endl;
+        for (int i = 0; i < 8; i++) {
+            double p = projectedcgpa(gpas[i]);
+            double d = p - currentcgpa;
+            cout << left << fixed << setprecision(2) << setw(16) << gpas[i]
+                 << setw(16) << p << (d >= 0 ? "+" : "") << d << endl;
+        }
+    }
+
+public:
+    WhatIfCGPACalculator() : currentcgpa(0.0), completedcredits(0), nextcredits(15) {}
+
+    void run(const Student* student) {
+        cout << endl << "WHAT-IF CGPA CALCULATOR" << endl;
+        if (student != NULL) {
+            currentcgpa = student->getcgpa();
+            completedcredits = student->getcompletedcredithours();
+            cout << "Student : " << student->getname() << " (" << student->getrollnumber() << ")" << endl;
+        } else {
+            cout << "Hypothetical mode (no real student record will be changed)." << endl;
+            currentcgpa = InputHelper::readdouble("Current CGPA (0.00 - 4.00): ", 0.0, 4.0);
+            completedcredits = InputHelper::readint("Completed credit hours (0 - 200): ", 0, 200);
+        }
+        cout << fixed << setprecision(2);
+        cout << "Current CGPA            : " << currentcgpa << endl;
+        cout << "Completed Credit Hours  : " << completedcredits << endl;
+        nextcredits = InputHelper::readint("Next semester credit hours (1 - 24): ", 1, 24);
+        cout << "Note: The official CGPA is NOT changed by this simulation." << endl;
+
+        while (true) {
+            cout << endl << "    1. Required GPA for a Target CGPA" << endl;
+            cout << "    2. Projected CGPA for an Expected GPA" << endl;
+            cout << "    3. Different GPA Scenarios" << endl;
+            cout << "    4. Back" << endl;
+            int c = InputHelper::readint("Choice: ", 1, 4);
+            if (c == 4) return;
+            if (c == 1) showrequired();
+            else if (c == 2) showprojected();
+            else showscenarios();
+        }
+    }
+};
+
+class SmartAcademicPredictor {
+private:
+    int usedcount(const Student& s) const {
+        int n = s.gethistorycount();
+        return n > 3 ? 3 : n;
+    }
+
+    double weightfor(int i, int k) const {
+        double base[3] = {0.50, 0.30, 0.20};
+        double total = 0.0;
+        for (int j = 0; j < k; j++) total += base[j];
+        return base[i] / total;
+    }
+
+public:
+    void showhistory(const Student& s) const {
+        cout << endl << "GPA History: " << s.getname() << " (" << s.getrollnumber() << ")" << endl;
+        if (s.gethistorycount() == 0) {
+            cout << "No previous semester GPA records found." << endl;
+            return;
+        }
+        cout << left << setw(12) << "Result #" << "GPA" << endl;
+        for (int i = 0; i < s.gethistorycount(); i++)
+            cout << left << setw(12) << (i + 1) << fixed << setprecision(2) << s.gethistoryat(i) << endl;
+    }
+
+    string gettrend(const Student& s) const {
+        int n = s.gethistorycount();
+        if (n < 2) return "Insufficient data";
+        int k = usedcount(s);
+        double latest = s.gethistoryat(n - 1);
+        double oldest = s.gethistoryat(n - k);
+        double diff = latest - oldest;
+        if (diff > 0.10) return "Improving";
+        if (diff < -0.10) return "Declining";
+        return "Stable";
+    }
+
+    void analyze(const Student& s) const {
+        int n = s.gethistorycount();
+        cout << endl << "Performance Analysis" << endl;
+        if (n == 0) {
+            cout << "Insufficient history: at least 1 semester GPA is required for analysis." << endl;
+            return;
+        }
+        double sum = 0.0, hi = s.gethistoryat(0), lo = s.gethistoryat(0);
+        for (int i = 0; i < n; i++) {
+            double g = s.gethistoryat(i);
+            sum += g;
+            if (g > hi) hi = g;
+            if (g < lo) lo = g;
+        }
+        cout << fixed << setprecision(2);
+        cout << "Semesters recorded : " << n << endl;
+        cout << "Average GPA        : " << sum / n << endl;
+        cout << "Highest GPA        : " << hi << endl;
+        cout << "Lowest GPA         : " << lo << endl;
+        cout << "Latest GPA         : " << s.gethistoryat(n - 1) << endl;
+        cout << "Trend              : " << gettrend(s);
+        if (n >= 2) cout << "  (compared over the last " << usedcount(s) << " results, +/-0.10 threshold)";
+        cout << endl;
+    }
+
+    double predictnextgpa(const Student& s) const {
+        int n = s.gethistorycount();
+        if (n == 0) return -1.0;
+        int k = usedcount(s);
+        double result = 0.0;
+        for (int i = 0; i < k; i++)
+            result += weightfor(i, k) * s.gethistoryat(n - 1 - i);
+        if (result > 4.0) result = 4.0;
+        if (result < 0.0) result = 0.0;
+        return result;
+    }
+
+    void showprediction(const Student& s) const {
+        int n = s.gethistorycount();
+        cout << endl << "Next Semester GPA Prediction" << endl;
+        if (n == 0) {
+            cout << "Insufficient history: at least 1 semester GPA is required for prediction." << endl;
+            return;
+        }
+        int k = usedcount(s);
+        if (k < 3)
+            cout << "Note: only " << k << " result(s) available, so the weights were adjusted proportionally." << endl;
+
+        string labels[3] = {"Latest", "Previous", "Third latest"};
+        double total = 0.0;
+        cout << fixed << setprecision(3);
+        cout << left << setw(15) << "Semester" << setw(8) << "GPA" << setw(10) << "Weight" << "Contribution" << endl;
+        for (int i = 0; i < k; i++) {
+            double g = s.gethistoryat(n - 1 - i);
+            double w = weightfor(i, k);
+            cout << left << setw(15) << labels[i] << setw(8) << setprecision(2) << g
+                 << setw(10) << setprecision(3) << w << g * w << endl;
+            total += g * w;
+        }
+        cout << "Predicted next semester GPA = " << setprecision(2) << predictnextgpa(s) << endl;
+        cout << endl << "IMPORTANT: This is only an ESTIMATE, not a guaranteed result." << endl;
+        cout << "The actual record is not changed by this prediction." << endl;
+    }
+
+    void showrecommendations(const Student& s) const {
+        cout << endl << "Academic Recommendations" << endl;
+        double p = predictnextgpa(s);
+        if (p < 0.0) {
+            cout << "Recommendations cannot be given because there is no history." << endl;
+            cout << "Please add semester GPA history first (Student Management > Update)." << endl;
+            return;
+        }
+        string trend = gettrend(s);
+
+        if (trend == "Improving")
+            cout << "- You are improving. Keep up the same study routine." << endl;
+        else if (trend == "Declining")
+            cout << "- Your GPA is declining. Identify weak courses and get help from a teacher or tutor." << endl;
+        else if (trend == "Stable")
+            cout << "- Performance is stable. A little extra effort can raise your GPA." << endl;
+        else
+            cout << "- More semester data is needed to determine a trend." << endl;
+
+        if (p >= 3.5)       cout << "- Predicted GPA is excellent: aim for the Dean's List or a scholarship." << endl;
+        else if (p >= 3.0)  cout << "- Predicted GPA is good: with a little more effort you can go above 3.5." << endl;
+        else if (p >= 2.0)  cout << "- Predicted GPA is weak: focus on a regular study plan and attendance." << endl;
+        else                cout << "- Predicted GPA is at risk: consult your advisor immediately." << endl;
+
+        if (s.getcgpa() < 2.0)
+            cout << "- CGPA is below 2.00: there is a risk of academic probation." << endl;
+        cout << "(This is only an estimate, not guaranteed.)" << endl;
+    }
+
+    void run(const Student& s) {
+        while (true) {
+            cout << endl << "SMART ACADEMIC PREDICTOR : " << s.getname() << "" << endl;
+            cout << "    1. View GPA History" << endl;
+            cout << "    2. Analyze Performance and Trend" << endl;
+            cout << "    3. Predict Next Semester GPA (with calculation)" << endl;
+            cout << "    4. Academic Recommendations" << endl;
+            cout << "    5. Back" << endl;
+            int c = InputHelper::readint("Choice: ", 1, 5);
+            if (c == 5) return;
+            if (c == 1) showhistory(s);
+            else if (c == 2) analyze(s);
+            else if (c == 3) showprediction(s);
+            else showrecommendations(s);
+        }
+    }
+};
+
+class StudentManager {
+private:
+    BST                   bst;
+    HashTable             depttable;
+    HashTable             nametable;
+    MaxHeap               heap;
+    FileManager           filemgr;
+    WhatIfCGPACalculator  calculator;
+    SmartAcademicPredictor predictor;
+
+    StudentManager(const StudentManager&);
+    StudentManager& operator=(const StudentManager&);
+
+    void rebuildindexes() {
+        depttable.clear();
+        nametable.clear();
+        heap.clear();
+        int n = bst.countnodes();
+        if (n == 0) return;
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+        for (int i = 0; i < n; i++) {
+            depttable.insert(arr[i]);
+            nametable.insert(arr[i]);
+        }
+        heap.buildfromarray(arr, n);
+        delete[] arr;
+    }
+
+    void autosave() {
+        if (!filemgr.save(bst))
+            cout << "WARNING: " << filemgr.getfilename() << " could not be saved!" << endl;
+        else
+            cout << "(Changes auto-saved to " << filemgr.getfilename() << ")" << endl;
+    }
+
+    void addsample(const string& roll, const string& name, const string& dept, int sem,
+                   double cgpa, const string& email, int credits,
+                   const double* hist, int histcount) {
+        Student s(roll, name, dept, sem, cgpa, email, credits);
+        for (int i = 0; i < histcount; i++) s.addsemestergpa(hist[i]);
+        bst.insert(s);
+    }
+
+    void createsamples() {
+        double h1[] = {3.20, 3.45, 3.70};
+        double h2[] = {3.70, 3.85, 3.80, 3.85};
+        double h3[] = {3.10, 2.70};
+        double h4[] = {3.40, 3.50, 3.60, 3.70, 3.80};
+        double h5[] = {3.10};
+        double h6[] = {3.20, 3.30, 3.25, 3.25, 3.30, 3.20};
+        double h7[] = {2.80, 2.40, 2.15};
+        double h8[] = {3.90, 4.00};
+        double h9[] = {2.50, 2.60, 2.70, 2.75, 2.80, 2.90, 3.00};
+        double h10[] = {3.30, 3.20, 3.40, 3.30};
+
+        addsample("25K-1001", "Ali Raza",       "CS", 4, 3.45, "ali.raza@nu.edu.pk",      48,  h1, 3);
+        addsample("25K-1002", "Sara Khan",      "SE", 5, 3.80, "sara.khan@nu.edu.pk",     64,  h2, 4);
+        addsample("25K-1003", "Bilal Ahmed",    "DS", 3, 2.90, "bilal.ahmed@nu.edu.pk",   32,  h3, 2);
+        addsample("25K-1004", "Hina Malik",     "AI", 6, 3.60, "hina.malik@nu.edu.pk",    80,  h4, 5);
+        addsample("25K-1005", "Usman Tariq",    "CS", 2, 3.10, "usman.tariq@nu.edu.pk",   16,  h5, 1);
+        addsample("25K-1006", "Ayesha Noor",    "SE", 7, 3.25, "ayesha.noor@nu.edu.pk",   96,  h6, 6);
+        addsample("25K-1007", "Hamza Sheikh",   "EE", 4, 2.45, "hamza.sheikh@nu.edu.pk",  48,  h7, 3);
+        addsample("25K-1008", "Zainab Fatima",  "AI", 3, 3.95, "zainab.fatima@nu.edu.pk", 32,  h8, 2);
+        addsample("25K-1009", "Omar Farooq",    "DS", 8, 2.75, "omar.farooq@nu.edu.pk",   112, h9, 7);
+        addsample("25K-1010", "Mariam Qureshi", "CS", 5, 3.30, "mariam.q@nu.edu.pk",      64,  h10, 4);
+    }
+
+    string prompttext(const string& prompt, int maxlen) {
+        while (true) {
+            string t = InputHelper::trim(InputHelper::readline(prompt));
+            if (Student::isvalidtext(t, maxlen)) return t;
+            cout << "  Error: cannot be empty, cannot contain the pipe character, and can be at most " << maxlen << " characters." << endl;
+        }
+    }
+
+    string promptemail() {
+        while (true) {
+            string t = InputHelper::trim(InputHelper::readline("Email: "));
+            if (Student::isvalidemail(t)) return t;
+            cout << "  Error: please enter a valid email (for example name@nu.edu.pk, max 40 characters)." << endl;
+        }
+    }
+
+    bool promptroll(string& roll) {
+        while (true) {
+            string t = Student::toupperstr(InputHelper::trim(InputHelper::readline("Roll Number (for example 25K-1011, 0 = cancel): ")));
+            if (t == "0") return false;
+            if (Student::isvalidrollnumber(t)) { roll = t; return true; }
+            cout << "  Error: format must be DDX-DDDD (for example 25K-1011)." << endl;
+        }
+    }
+
+    Student* promptexistingstudent() {
+        string roll = Student::toupperstr(InputHelper::trim(InputHelper::readline("Roll Number: ")));
+        Student* s = bst.search(roll);
+        if (s == NULL) cout << "Error: Roll Number " << roll << " not found." << endl;
+        return s;
+    }
+
+    static int lowerbound(Student** a, int n, double value, int& steps) {
+        int lo = 0, hi = n;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            steps++;
+            if (a[mid]->getcgpa() < value) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    static int upperbound(Student** a, int n, double value, int& steps) {
+        int lo = 0, hi = n;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            steps++;
+            if (a[mid]->getcgpa() <= value) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+public:
+    StudentManager() : depttable(false), nametable(true), heap(16), filemgr("students.txt") {}
+
+    void initialize() {
+        if (!filemgr.fileexists()) {
+            createsamples();
+            rebuildindexes();
+            if (filemgr.save(bst))
+                cout << "Welcome to NEXUS! Sample Student Database Initialized Successfully." << endl;
+            else
+                cout << "Samples were created but students.txt could not be created (check folder permissions)." << endl;
+        } else {
+            int bad = 0, dup = 0;
+            int loaded = filemgr.load(bst, bad, dup);
+            rebuildindexes();
+            cout << "Welcome back to NEXUS! " << loaded << " student record(s) loaded from "
+                 << filemgr.getfilename() << "." << endl;
+            if (loaded == 0 && bad == 0 && dup == 0)
+                cout << "(The database is empty. You can add new students from Student Management.)" << endl;
+            if (dup > 0) cout << "WARNING: " << dup << " duplicate Roll Number record(s) were ignored." << endl;
+            if (bad > 0) cout << "WARNING: " << bad << " invalid line(s) were ignored." << endl;
+        }
+    }
+
+    void addstudent() {
+        cout << endl << "ADD STUDENT" << endl;
+        string roll;
+        while (true) {
+            if (!promptroll(roll)) { cout << "Cancelled." << endl; return; }
+            if (bst.exists(roll)) {
+                cout << "Error: Student with Roll Number " << roll << " already exists! Duplicates are not allowed." << endl;
+                continue;
+            }
+            break;
+        }
+        string name = prompttext("Name (max 20): ", 20);
+        string dept = prompttext("Department (for example CS, SE, AI; max 6): ", 6);
+        int sem = InputHelper::readint("Semester (1-8): ", 1, 8);
+        double cgpa = InputHelper::readdouble("CGPA (0.00-4.00): ", 0.0, 4.0);
+        string email = promptemail();
+        int credits = InputHelper::readint("Completed Credit Hours (0-200): ", 0, 200);
+
+        Student s(roll, name, dept, sem, cgpa, email, credits);
+
+        int hc = InputHelper::readint("How many previous semester GPAs do you want to enter (0-12): ", 0, max_history);
+        for (int i = 0; i < hc; i++) {
+            cout << "Semester result #" << (i + 1) << endl;
+            double g = InputHelper::readdouble("  GPA (0.00-4.00): ", 0.0, 4.0);
+            s.addsemestergpa(g);
+        }
+
+        if (!bst.insert(s)) {
+            cout << "Error: Duplicate Roll Number! Student was not added." << endl;
+            return;
+        }
+        Student* p = bst.search(roll);
+        depttable.insert(p);
+        nametable.insert(p);
+        heap.insert(p);
+        cout << "Student added successfully." << endl;
+        autosave();
+    }
+
+    void searchstudent() {
+        cout << endl << "SEARCH STUDENT" << endl;
+        cout << "    1. Search by Roll Number (BST)" << endl;
+        cout << "    2. Search by Name (Hash Table)" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 2);
+        if (c == 1) {
+            Student* s = promptexistingstudent();
+            if (s != NULL) { cout << endl; s->printfulldetails(); }
+        } else {
+            string name = InputHelper::trim(InputHelper::readline("Name (full name): "));
+            cout << endl;
+            if (nametable.searchanddisplay(name) == 0)
+                cout << "Name not found." << endl;
+        }
+    }
+
+    void updatestudent() {
+        cout << endl << "UPDATE STUDENT" << endl;
+        Student* s = promptexistingstudent();
+        if (s == NULL) return;
+
+        while (true) {
+            cout << endl;
+            s->printfulldetails();
+            cout << endl << "(Roll Number is the primary key and cannot be changed.)" << endl;
+            cout << "    1. Name" << endl << "    2. Department" << endl << "    3. Semester" << endl
+                 << "    4. CGPA" << endl << "    5. Email" << endl << "    6. Completed Credit Hours" << endl
+                 << "    7. Add Semester GPA to history" << endl << "    8. Edit a history GPA" << endl
+                 << "    9. Clear GPA history" << endl << "    10. Done" << endl;
+            int c = InputHelper::readint("Choice: ", 1, 10);
+            if (c == 10) return;
+
+            if (c == 1) s->setname(prompttext("New name: ", 20));
+            else if (c == 2) s->setdepartment(prompttext("New department: ", 6));
+            else if (c == 3) s->setsemester(InputHelper::readint("New semester (1-8): ", 1, 8));
+            else if (c == 4) s->setcgpa(InputHelper::readdouble("New CGPA (0.00-4.00): ", 0.0, 4.0));
+            else if (c == 5) s->setemail(promptemail());
+            else if (c == 6) s->setcompletedcredithours(InputHelper::readint("New credit hours (0-200): ", 0, 200));
+            else if (c == 7) {
+                if (s->gethistorycount() >= max_history) {
+                    cout << "GPA history is full (max 12)." << endl;
+                    continue;
+                }
+                s->addsemestergpa(InputHelper::readdouble("Semester GPA (0.00-4.00): ", 0.0, 4.0));
+            }
+            else if (c == 8) {
+                if (s->gethistorycount() == 0) { cout << "GPA history is empty." << endl; continue; }
+                int idx = InputHelper::readint("Which result number do you want to edit: ", 1, s->gethistorycount());
+                s->sethistoryat(idx - 1, InputHelper::readdouble("New GPA (0.00-4.00): ", 0.0, 4.0));
+            }
+            else if (c == 9) {
+                if (InputHelper::confirm("Do you want to clear the GPA history?")) s->clearhistory();
+                else continue;
+            }
+
+            rebuildindexes();
+            cout << "Updated successfully." << endl;
+            autosave();
+        }
+    }
+
+    void deletestudent() {
+        cout << endl << "DELETE STUDENT" << endl;
+        Student* s = promptexistingstudent();
+        if (s == NULL) return;
+        cout << endl;
+        s->printfulldetails();
+        if (!InputHelper::confirm("Are you sure you want to delete this student?")) {
+            cout << "Delete cancelled." << endl;
+            return;
+        }
+        string roll = s->getrollnumber();
+        s = NULL;
+        bst.remove(roll);
+        rebuildindexes();
+        cout << "Student " << roll << " deleted from all indexes." << endl;
+        autosave();
+    }
+
+    void viewallstudents() {
+        cout << endl << "ALL STUDENTS (Roll Number order)" << endl;
+        bst.displayall();
+        cout << endl << "Total students: " << bst.countnodes() << endl;
+    }
+
+    void searchbydepartment() {
+        string dept = InputHelper::trim(InputHelper::readline("Department (for example CS): "));
+        cout << endl;
+        int n = depttable.searchanddisplay(dept);
+        if (n == 0) cout << "No students found in this department." << endl;
+        else cout << endl << "Total in " << Student::toupperstr(dept) << ": " << n << endl;
+    }
+
+    void showdepartmentcounts() {
+        cout << endl << "DEPARTMENT-WISE COUNT" << endl;
+        depttable.displaykeycounts();
+    }
+
+    void showdepartmentstudents() {
+        cout << endl << "DEPARTMENT-WISE STUDENTS" << endl;
+        if (bst.isempty()) { cout << "No records found." << endl; return; }
+        int n = bst.countnodes();
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+        for (int i = 0; i < n; i++) {
+            bool seen = false;
+            for (int j = 0; j < i; j++)
+                if (arr[j]->getdepartment() == arr[i]->getdepartment()) { seen = true; break; }
+            if (seen) continue;
+            cout << endl << "Department: " << arr[i]->getdepartment()
+                 << "  (" << depttable.countbykey(arr[i]->getdepartment()) << " students)" << endl;
+            depttable.searchanddisplay(arr[i]->getdepartment());
+        }
+        delete[] arr;
+    }
+
+    void showhashbuckets() {
+        cout << endl << "HASH TABLE (Department) - Chaining" << endl;
+        depttable.displaybuckets();
+    }
+
+    void showhighest() { cout << endl; heap.displayhighest(); }
+    void showtopk(int k) {
+        cout << endl << "TOP " << k << " MERIT LIST" << endl;
+        heap.displaytopk(k);
+    }
+
+    void sortanddisplay(int mode) {
+        int n = bst.countnodes();
+        if (n == 0) { cout << "No students to sort." << endl; return; }
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+        MergeSort::sortarray(arr, n, mode);
+        cout << endl;
+        Student::printtableheader();
+        for (int i = 0; i < n; i++) arr[i]->printrow();
+        delete[] arr;
+    }
+
+    void cgparangesearch() {
+        cout << endl << "CGPA RANGE SEARCH (Binary Search)" << endl;
+        int n = bst.countnodes();
+        if (n == 0) { cout << "No students available." << endl; return; }
+
+        double minc, maxc;
+        while (true) {
+            minc = InputHelper::readdouble("Minimum CGPA: ", 0.0, 4.0);
+            maxc = InputHelper::readdouble("Maximum CGPA: ", 0.0, 4.0);
+            if (minc <= maxc) break;
+            cout << "  Error: minimum cannot be greater than maximum." << endl;
+        }
+
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+        MergeSort::sortarray(arr, n, MergeSort::cgpa_asc);
+
+        int steps = 0;
+        int lo = lowerbound(arr, n, minc, steps);
+        int hi = upperbound(arr, n, maxc, steps);
+
+        cout << endl << fixed << setprecision(2);
+        if (lo >= hi) {
+            cout << "No student found with CGPA between " << minc << " and " << maxc << "." << endl;
+        } else {
+            Student::printtableheader();
+            for (int i = lo; i < hi; i++) arr[i]->printrow();
+            cout << endl << "Matches: " << (hi - lo) << endl;
+        }
+        cout << "Binary search comparisons: " << steps << " (linear search would need " << n << ")" << endl;
+        delete[] arr;
+    }
+
+    void showsummary() {
+        cout << endl << "STATISTICS AND REPORTS" << endl;
+        int n = bst.countnodes();
+        if (n == 0) { cout << "The database is empty." << endl; return; }
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+
+        double sum = 0.0;
+        int honor = 0, probation = 0;
+        Student* lowest = arr[0];
+        for (int i = 0; i < n; i++) {
+            double c = arr[i]->getcgpa();
+            sum += c;
+            if (c >= 3.5) honor++;
+            if (c < 2.0) probation++;
+            if (c < lowest->getcgpa()) lowest = arr[i];
+        }
+        Student* top = heap.peekmax();
+
+        cout << fixed << setprecision(2);
+        cout << "Total students        : " << n << endl;
+        cout << "Average CGPA          : " << sum / n << endl;
+        cout << "Highest CGPA          : " << top->getcgpa() << " (" << top->getname() << ")" << endl;
+        cout << "Lowest CGPA           : " << lowest->getcgpa() << " (" << lowest->getname() << ")" << endl;
+        cout << "CGPA >= 3.50          : " << honor << endl;
+        cout << "CGPA < 2.00 (risk)    : " << probation << endl;
+        cout << endl << "Department-wise count:" << endl;
+        depttable.displaykeycounts();
+        delete[] arr;
+    }
+
+    void showtraversals() {
+        cout << endl << "BST TRAVERSALS" << endl;
+        bst.displayinorder();
+        bst.displaypreorder();
+        bst.displaypostorder();
+    }
+
+    void showtreeinfo() {
+        cout << endl << "BST INFORMATION" << endl;
+        bst.displaytreeinfo();
+    }
+
+    void runwhatifexisting() {
+        Student* s = promptexistingstudent();
+        if (s != NULL) calculator.run(s);
+    }
+
+    void runwhatifhypothetical() {
+        calculator.run(NULL);
+    }
+
+    void runpredictor() {
+        Student* s = promptexistingstudent();
+        if (s != NULL) predictor.run(*s);
+    }
+
+    void savenow() {
+        if (filemgr.save(bst))
+            cout << bst.countnodes() << " record(s) saved to " << filemgr.getfilename() << "." << endl;
+        else
+            cout << "Error: could not save the file." << endl;
+    }
+
+    void reloadfromfile() {
+        if (!filemgr.fileexists()) {
+            cout << "students.txt does not exist. Please save first." << endl;
+            return;
+        }
+        if (!InputHelper::confirm("Discard the data in memory and reload from the file?")) return;
+        bst.clear();
+        depttable.clear();
+        nametable.clear();
+        heap.clear();
+        int bad = 0, dup = 0;
+        int loaded = filemgr.load(bst, bad, dup);
+        rebuildindexes();
+        cout << loaded << " record(s) loaded." << endl;
+        if (dup > 0) cout << "WARNING: " << dup << " duplicate Roll Number record(s) were ignored." << endl;
+        if (bad > 0) cout << "WARNING: " << bad << " invalid line(s) were ignored." << endl;
+    }
+
+    void showfileinfo() {
+        cout << endl << "File name        : " << filemgr.getfilename() << endl;
+        cout << "File exists      : " << (filemgr.fileexists() ? "Yes" : "No") << endl;
+        cout << "Records in memory: " << bst.countnodes() << endl;
+    }
+
+    void resettosamples() {
+        cout << "WARNING: This will remove all existing records and restore the 10 sample students." << endl;
+        if (!InputHelper::confirm("Are you sure you want to reset?")) return;
+        bst.clear();
+        depttable.clear();
+        nametable.clear();
+        heap.clear();
+        createsamples();
+        rebuildindexes();
+        savenow();
+    }
+
+    void saveonexit() {
+        if (!filemgr.save(bst))
+            cout << "WARNING: could not save on exit!" << endl;
+        else
+            cout << "Data saved. Goodbye!" << endl;
+    }
+};
+
+void studentmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "STUDENT MANAGEMENT" << endl;
+        cout << "    1. Add Student" << endl << "    2. Search Student" << endl << "    3. Update Student" << endl
+             << "    4. Delete Student" << endl << "    5. View All Students" << endl << "    6. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 6);
+        if (c == 6) return;
+        if (c == 1) m.addstudent();
+        else if (c == 2) m.searchstudent();
+        else if (c == 3) m.updatestudent();
+        else if (c == 4) m.deletestudent();
+        else m.viewallstudents();
+        InputHelper::pause();
+    }
+}
+
+void departmentmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "DEPARTMENT MANAGEMENT" << endl;
+        cout << "    1. Search Students by Department" << endl << "    2. Display Department-wise Students" << endl
+             << "    3. Department-wise Count" << endl << "    4. Show Hash Table Buckets (Collisions)" << endl
+             << "    5. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 5);
+        if (c == 5) return;
+        if (c == 1) m.searchbydepartment();
+        else if (c == 2) m.showdepartmentstudents();
+        else if (c == 3) m.showdepartmentcounts();
+        else m.showhashbuckets();
+        InputHelper::pause();
+    }
+}
+
+void meritmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "MERIT LIST (Max Heap)" << endl;
+        cout << "    1. Highest CGPA" << endl << "    2. Top 3" << endl << "    3. Top 5" << endl
+             << "    4. Top 10" << endl << "    5. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 5);
+        if (c == 5) return;
+        if (c == 1) m.showhighest();
+        else if (c == 2) m.showtopk(3);
+        else if (c == 3) m.showtopk(5);
+        else m.showtopk(10);
+        InputHelper::pause();
+    }
+}
+
+void sortingmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "SORTING (Merge Sort)" << endl;
+        cout << "    1. Name Ascending" << endl << "    2. Name Descending" << endl << "    3. CGPA Ascending" << endl
+             << "    4. CGPA Descending" << endl << "    5. Roll Number" << endl << "    6. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 6);
+        if (c == 6) return;
+        m.sortanddisplay(c);
+        InputHelper::pause();
+    }
+}
+
+void statisticsmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "STATISTICS AND REPORTS" << endl;
+        cout << "    1. Summary Report" << endl << "    2. BST Traversals" << endl << "    3. BST Information (count, height)" << endl
+             << "    4. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 4);
+        if (c == 4) return;
+        if (c == 1) m.showsummary();
+        else if (c == 2) m.showtraversals();
+        else m.showtreeinfo();
+        InputHelper::pause();
+    }
+}
+
+void whatifmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "WHAT-IF CGPA CALCULATOR" << endl;
+        cout << "    1. Use Existing Student" << endl << "    2. Hypothetical Calculation" << endl << "    3. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 3);
+        if (c == 3) return;
+        if (c == 1) m.runwhatifexisting();
+        else m.runwhatifhypothetical();
+    }
+}
+
+void predictormenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "SMART ACADEMIC PREDICTOR" << endl;
+        cout << "    1. Select Student" << endl << "    2. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 2);
+        if (c == 2) return;
+        m.runpredictor();
+    }
+}
+
+void filemenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "FILE MANAGEMENT" << endl;
+        cout << "    1. Save Records Now" << endl << "    2. Reload from File" << endl << "    3. File Information" << endl
+             << "    4. Reset to Sample Database" << endl << "    5. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 5);
+        if (c == 5) return;
+        if (c == 1) m.savenow();
+        else if (c == 2) m.reloadfromfile();
+        else if (c == 3) m.showfileinfo();
+        else m.resettosamples();
+        InputHelper::pause();
+    }
+}
+
+void showmainmenu() {
+    cout << endl << "NEXUS - STUDENT RECORDS DATABASE SYSTEM" << endl;
+    cout << "     1. Student Management" << endl;
+    cout << "     2. Department Management" << endl;
+    cout << "     3. Merit List" << endl;
+    cout << "     4. Sorting" << endl;
+    cout << "     5. CGPA Range Search" << endl;
+    cout << "     6. Statistics and Reports" << endl;
+    cout << "     7. What-If CGPA Calculator" << endl;
+    cout << "     8. Smart Academic Predictor" << endl;
+    cout << "     9. File Management" << endl;
+    cout << "    10. Exit" << endl;
+}
+
+int main() {
+    StudentManager manager;
+    manager.initialize();
+
+    while (true) {
+        showmainmenu();
+        int choice = InputHelper::readint("Enter choice (1-10): ", 1, 10);
+        switch (choice) {
+            case 1: studentmenu(manager); break;
+            case 2: departmentmenu(manager); break;
+            case 3: meritmenu(manager); break;
+            case 4: sortingmenu(manager); break;
+            case 5: manager.cgparangesearch(); InputHelper::pause(); break;
+            case 6: statisticsmenu(manager); break;
+            case 7: whatifmenu(manager); break;
+            case 8: predictormenu(manager); break;
+            case 9: filemenu(manager); break;
+            case 10:
+                manager.saveonexit();
+                return 0;
+        }
+    }
+    return 0;
+}
