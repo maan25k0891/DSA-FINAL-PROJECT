@@ -1669,3 +1669,45 @@ void runwhatifexisting() {
         if (dup > 0) cout << "WARNING: " << dup << " duplicate Roll Number record(s) were ignored." << endl;
         if (bad > 0) cout << "WARNING: " << bad << " invalid line(s) were ignored." << endl;
     }
+
+void showfileinfo() {
+        cout << endl << "File name        : " << filemgr.getfilename() << endl;
+        cout << "File exists      : " << (filemgr.fileexists() ? "Yes" : "No") << endl;
+        cout << "Records in memory: " << bst.countnodes() << endl;
+    }
+
+    void resettosamples() {
+        cout << "WARNING: This will remove all existing records and restore the 10 sample students." << endl;
+        if (!InputHelper::confirm("Are you sure you want to reset?")) return;
+        bst.clear();
+        depttable.clear();
+        nametable.clear();
+        heap.clear();
+        createsamples();
+        rebuildindexes();
+        savenow();
+    }
+
+    void saveonexit() {
+        if (!filemgr.save(bst))
+            cout << "WARNING: could not save on exit!" << endl;
+        else
+            cout << "Data saved. Goodbye!" << endl;
+    }
+};
+
+void studentmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "STUDENT MANAGEMENT" << endl;
+        cout << "    1. Add Student" << endl << "    2. Search Student" << endl << "    3. Update Student" << endl
+             << "    4. Delete Student" << endl << "    5. View All Students" << endl << "    6. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 6);
+        if (c == 6) return;
+        if (c == 1) m.addstudent();
+        else if (c == 2) m.searchstudent();
+        else if (c == 3) m.updatestudent();
+        else if (c == 4) m.deletestudent();
+        else m.viewallstudents();
+        InputHelper::pause();
+    }
+}
