@@ -458,3 +458,180 @@ public:
         fillarrayrec(root, arr, index);
     }
 };
+
+class LinkedListNode {
+private:
+    Student*        student;
+    LinkedListNode* next;
+
+public:
+    LinkedListNode(Student* s) : student(s), next(NULL) {}
+
+    Student* getstudent() const { return student; }
+    LinkedListNode* getnext() const { return next; }
+    void setnext(LinkedListNode* n) { next = n; }
+};
+
+class HashTable {
+private:
+    LinkedListNode* table[hash_table_size];
+    bool            usename;
+
+    HashTable(const HashTable&);
+    HashTable& operator=(const HashTable&);
+
+    static string tolowerstr(const string& s) {
+        string r = s;
+        for (size_t i = 0; i < r.length(); i++)
+            r[i] = (char)tolower((unsigned char)r[i]);
+        return r;
+    }
+
+    string getkey(Student* s) const {
+        return usename ? s->getname() : s->getdepartment();
+    }
+
+    int hashfunction(const string& key) const {
+        string k = tolowerstr(key);
+        unsigned long h = 0;
+        for (size_t i = 0; i < k.length(); i++)
+            h = (h * 31 + (unsigned char)k[i]) % hash_table_size;
+        return (int)h;
+    }
+
+public:
+    HashTable(bool keyisname = false) {
+        usename = keyisname;
+        for (int i = 0; i < hash_table_size; i++) table[i] = NULL;
+    }
+
+    ~HashTable() { clear(); }
+
+    void clear() {
+        for (int i = 0; i < hash_table_size; i++) {
+            LinkedListNode* cur = table[i];
+            while (cur != NULL) {
+                LinkedListNode* nextnode = cur->getnext();
+                delete cur;
+                cur = nextnode;
+            }
+            table[i] = NULL;
+        }
+    }
+
+    void insert(Student* s) {
+        int idx = hashfunction(getkey(s));
+        LinkedListNode* node = new LinkedListNode(s);
+        node->setnext(table[idx]);
+        table[idx] = node;
+    }
+
+    bool remove(const string& rollinput) {
+        string roll = Student::toupperstr(rollinput);
+        for (int i = 0; i < hash_table_size; i++) {
+            LinkedListNode* cur = table[i];
+            LinkedListNode* prev = NULL;
+            while (cur != NULL) {
+                if (cur->getstudent()->getrollnumber() == roll) {
+                    if (prev == NULL) table[i] = cur->getnext();
+                    else              prev->setnext(cur->getnext());
+                    delete cur;
+                    return true;
+                }
+                prev = cur;
+                cur = cur->getnext();
+            }
+        }
+        return false;
+    }
+
+    int searchanddisplay(const string& key) const {
+        int idx = hashfunction(key);
+        string target = tolowerstr(key);
+        int found = 0;
+        LinkedListNode* cur = table[idx];
+        while (cur != NULL) {
+            if (tolowerstr(getkey(cur->getstudent())) == target) {
+                if (found == 0) Student::printtableheader();
+                cur->getstudent()->printrow();
+                found++;
+            }
+            cur = cur->getnext();
+        }
+        return found;
+    }
+
+    int countbykey(const string& key) const {
+        int idx = hashfunction(key);
+        string target = tolowerstr(key);
+        int count = 0;
+        LinkedListNode* cur = table[idx];
+        while (cur != NULL) {
+            if (tolowerstr(getkey(cur->getstudent())) == target) count++;
+            cur = cur->getnext();
+        }
+        return count;
+    }
+
+    int chainlength(int bucket) const {
+        if (bucket < 0 || bucket >= hash_table_size) return 0;
+        int len = 0;
+        LinkedListNode* cur = table[bucket];
+        while (cur != NULL) { len++; cur = cur->getnext(); }
+        return len;
+    }
+
+    int totalentries() const {
+        int total = 0;
+        for (int i = 0; i < hash_table_size; i++) total += chainlength(i);
+        return total;
+    }
+
+    void displaykeycounts() const {
+        if (totalentries() == 0) {
+            cout << "No records found." << endl;
+            return;
+        }
+        cout << left << setw(15) << (usename ? "Name" : "Department") << "Students" << endl;
+
+        for (int i = 0; i < hash_table_size; i++) {
+            LinkedListNode* cur = table[i];
+            while (cur != NULL) {
+                string k = tolowerstr(getkey(cur->getstudent()));
+
+                bool seenbefore = false;
+                LinkedListNode* earlier = table[i];
+                while (earlier != cur) {
+                    if (tolowerstr(getkey(earlier->getstudent())) == k) { seenbefore = true; break; }
+                    earlier = earlier->getnext();
+                }
+
+                if (!seenbefore) {
+                    int count = 0;
+                    LinkedListNode* scan = cur;
+                    while (scan != NULL) {
+                        if (tolowerstr(getkey(scan->getstudent())) == k) count++;
+                        scan = scan->getnext();
+                    }
+                    cout << left << setw(15) << getkey(cur->getstudent()) << count << endl;
+                }
+                cur = cur->getnext();
+            }
+        }
+    }
+
+    void displaybuckets() const {
+        for (int i = 0; i < hash_table_size; i++) {
+            cout << "Bucket " << setw(2) << i << " [" << chainlength(i) << "] : ";
+            LinkedListNode* cur = table[i];
+            if (cur == NULL) cout << "(empty)";
+            while (cur != NULL) {
+                cout << cur->getstudent()->getrollnumber()
+                     << "(" << getkey(cur->getstudent()) << ")";
+                if (cur->getnext() != NULL) cout << " -> ";
+                cur = cur->getnext();
+            }
+            cout << endl;
+        }
+    }
+};
