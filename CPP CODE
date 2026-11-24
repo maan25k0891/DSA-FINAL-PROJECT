@@ -1742,3 +1742,104 @@ void meritmenu(StudentManager& m) {
         InputHelper::pause();
     }
 }
+
+void sortingmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "SORTING (Merge Sort)" << endl;
+        cout << "    1. Name Ascending" << endl << "    2. Name Descending" << endl << "    3. CGPA Ascending" << endl
+             << "    4. CGPA Descending" << endl << "    5. Roll Number" << endl << "    6. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 6);
+        if (c == 6) return;
+        m.sortanddisplay(c);
+        InputHelper::pause();
+    }
+}
+
+void statisticsmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "STATISTICS AND REPORTS" << endl;
+        cout << "    1. Summary Report" << endl << "    2. BST Traversals" << endl << "    3. BST Information (count, height)" << endl
+             << "    4. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 4);
+        if (c == 4) return;
+        if (c == 1) m.showsummary();
+        else if (c == 2) m.showtraversals();
+        else m.showtreeinfo();
+        InputHelper::pause();
+    }
+}
+
+void whatifmenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "WHAT-IF CGPA CALCULATOR" << endl;
+        cout << "    1. Use Existing Student" << endl << "    2. Hypothetical Calculation" << endl << "    3. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 3);
+        if (c == 3) return;
+        if (c == 1) m.runwhatifexisting();
+        else m.runwhatifhypothetical();
+    }
+}
+
+void predictormenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "SMART ACADEMIC PREDICTOR" << endl;
+        cout << "    1. Select Student" << endl << "    2. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 2);
+        if (c == 2) return;
+        m.runpredictor();
+    }
+}
+
+void filemenu(StudentManager& m) {
+    while (true) {
+        cout << endl << "FILE MANAGEMENT" << endl;
+        cout << "    1. Save Records Now" << endl << "    2. Reload from File" << endl << "    3. File Information" << endl
+             << "    4. Reset to Sample Database" << endl << "    5. Back" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 5);
+        if (c == 5) return;
+        if (c == 1) m.savenow();
+        else if (c == 2) m.reloadfromfile();
+        else if (c == 3) m.showfileinfo();
+        else m.resettosamples();
+        InputHelper::pause();
+    }
+}
+
+void showmainmenu() {
+    cout << endl << "NEXUS - STUDENT RECORDS DATABASE SYSTEM" << endl;
+    cout << "     1. Student Management" << endl;
+    cout << "     2. Department Management" << endl;
+    cout << "     3. Merit List" << endl;
+    cout << "     4. Sorting" << endl;
+    cout << "     5. CGPA Range Search" << endl;
+    cout << "     6. Statistics and Reports" << endl;
+    cout << "     7. What-If CGPA Calculator" << endl;
+    cout << "     8. Smart Academic Predictor" << endl;
+    cout << "     9. File Management" << endl;
+    cout << "    10. Exit" << endl;
+}
+
+int main() {
+    StudentManager manager;
+    manager.initialize();
+
+    while (true) {
+        showmainmenu();
+        int choice = InputHelper::readint("Enter choice (1-10): ", 1, 10);
+        switch (choice) {
+            case 1: studentmenu(manager); break;
+            case 2: departmentmenu(manager); break;
+            case 3: meritmenu(manager); break;
+            case 4: sortingmenu(manager); break;
+            case 5: manager.cgparangesearch(); InputHelper::pause(); break;
+            case 6: statisticsmenu(manager); break;
+            case 7: whatifmenu(manager); break;
+            case 8: predictormenu(manager); break;
+            case 9: filemenu(manager); break;
+            case 10:
+                manager.saveonexit();
+                return 0;
+        }
+    }
+    return 0;
+}
