@@ -773,3 +773,209 @@ public:
         }
     }
 };
+
+class MergeSort {
+public:
+    enum SortMode { name_asc = 1, name_desc = 2, cgpa_asc = 3, cgpa_desc = 4, roll_asc = 5 };
+
+private:
+    static string lowerstr(const string& s) {
+        string r = s;
+        for (size_t i = 0; i < r.length(); i++)
+            r[i] = (char)tolower((unsigned char)r[i]);
+        return r;
+    }
+
+    static bool inorder(Student* a, Student* b, int mode) {
+        switch (mode) {
+            case name_asc: {
+                string x = lowerstr(a->getname());
+                string y = lowerstr(b->getname());
+                return x.compare(y) <= 0;
+            }
+            case name_desc: {
+                string x = lowerstr(a->getname());
+                string y = lowerstr(b->getname());
+                return x.compare(y) >= 0;
+            }
+            case cgpa_asc:  return a->getcgpa() <= b->getcgpa();
+            case cgpa_desc: return a->getcgpa() >= b->getcgpa();
+            default:        return a->getrollnumber().compare(b->getrollnumber()) <= 0;
+        }
+    }
+
+    static void mergeparts(Student** arr, Student** temp, int left, int mid, int right, int mode) {
+        int i = left, j = mid + 1, k = left;
+        while (i <= mid && j <= right) {
+            if (inorder(arr[i], arr[j], mode)) temp[k++] = arr[i++];
+            else                               temp[k++] = arr[j++];
+        }
+        while (i <= mid)   temp[k++] = arr[i++];
+        while (j <= right) temp[k++] = arr[j++];
+        for (k = left; k <= right; k++) arr[k] = temp[k];
+    }
+
+    static void mergerec(Student** arr, Student** temp, int left, int right, int mode) {
+        if (left >= right) return;
+        int mid = left + (right - left) / 2;
+        mergerec(arr, temp, left, mid, mode);
+        mergerec(arr, temp, mid + 1, right, mode);
+        mergeparts(arr, temp, left, mid, right, mode);
+    }
+
+public:
+    static void sortarray(Student** arr, int n, int mode) {
+        if (n <= 1) return;
+        Student** temp = new Student*[n];
+        mergerec(arr, temp, 0, n - 1, mode);
+        delete[] temp;
+    }
+};
+
+class FileManager {
+private:
+    string filename;
+
+    static bool parseint(const string& t, int& out) {
+        string s = InputHelper::trim(t);
+        if (s.empty()) return false;
+        char* end = NULL;
+        long v = strtol(s.c_str(), &end, 10);
+        if (*end != '\0') return false;
+        out = (int)v;
+        return true;
+    }
+
+    static bool parsedouble(const string& t, double& out) {
+        string s = InputHelper::trim(t);
+        if (s.empty()) return false;
+        char* end = NULL;
+        double v = strtod(s.c_str(), &end);
+        if (*end != '\0') return false;
+        out = v;
+        return true;
+    }
+
+    static int splitfields(const string& line, string f[], int maxf) {
+        int count = 0;
+        string cur = "";
+        for (size_t i = 0; i < line.length(); i++) {
+            if (line[i] == '|' && count < maxf - 1) {
+                f[count++] = cur;
+                cur = "";
+            } else {
+                cur += line[i];
+            }
+        }
+        f[count++] = cur;
+        return count;
+    }
+
+    int processline(const string& line, BST& tree, bool& wasduplicate) {
+        wasduplicate = false;
+        string f[9];
+        int n = splitfields(line, f, 9);
+        if (n < 8) return 0;
+
+        string roll = Student::toupperstr(InputHelper::trim(f[0]));
+        string name = InputHelper::trim(f[1]);
+        string dept = InputHelper::trim(f[2]);
+        string email = InputHelper::trim(f[5]);
+        int sem = 0, credits = 0, hcount = 0;
+        double cg = 0.0;
+
+        if (!Student::isvalidrollnumber(roll)) return 0;
+        if (!Student::isvalidtext(name, 20)) return 0;
+        if (!Student::isvalidtext(dept, 6)) return 0;
+        if (!parseint(f[3], sem) || !Student::isvalidsemester(sem)) return 0;
+        if (!parsedouble(f[4], cg) || !Student::isvalidcgpa(cg)) return 0;
+        if (!Student::isvalidemail(email)) return 0;
+        if (!parseint(f[6], credits) || !Student::isvalidcredits(credits)) return 0;
+        if (!parseint(f[7], hcount) || hcount < 0 || hcount > max_history) return 0;
+
+        Student s(roll, name, dept, sem, cg, email, credits);
+
+        if (hcount > 0) {
+            if (n < 9) return 0;
+            string list = f[8];
+            int added = 0;
+            string token = "";
+            for (size_t i = 0; i <= list.length(); i++) {
+                if (i == list.length() || list[i] == ',') {
+                    double g = 0.0;
+                    if (!parsedouble(token, g)) return 0;
+                    if (!s.addsemestergpa(g)) return 0;
+                    added++;
+                    token = "";
+                } else {
+                    token += list[i];
+                }
+            }
+            if (added != hcount) return 0;
+        }
+
+        if (!tree.insert(s)) {
+            wasduplicate = true;
+            return 0;
+        }
+        return 1;
+    }
+
+public:
+    FileManager(const string& fname) : filename(fname) {}
+
+    string getfilename() const { return filename; }
+
+    bool fileexists() const {
+        ifstream in(filename.c_str());
+        return in.good();
+    }
+
+    bool save(const BST& tree) const {
+        ofstream out(filename.c_str());
+        if (!out) return false;
+
+        int n = tree.countnodes();
+        if (n > 0) {
+            Student** arr = new Student*[n];
+            tree.fillarray(arr);
+            for (int i = 0; i < n; i++) {
+                Student* s = arr[i];
+                out << s->getrollnumber() << "|" << s->getname() << "|"
+                    << s->getdepartment() << "|" << s->getsemester() << "|"
+                    << fixed << setprecision(2) << s->getcgpa() << "|"
+                    << s->getemail() << "|" << s->getcompletedcredithours() << "|"
+                    << s->gethistorycount() << "|";
+                for (int h = 0; h < s->gethistorycount(); h++) {
+                    out << fixed << setprecision(2) << s->gethistoryat(h);
+                    if (h < s->gethistorycount() - 1) out << ",";
+                }
+                out << "\n";
+            }
+            delete[] arr;
+        }
+        out.close();
+        return true;
+    }
+
+    int load(BST& tree, int& skippedinvalid, int& skippedduplicate) {
+        skippedinvalid = 0;
+        skippedduplicate = 0;
+        ifstream in(filename.c_str());
+        if (!in) return -1;
+
+        int loaded = 0;
+        string line;
+        while (getline(in, line)) {
+            if (!line.empty() && line[line.length() - 1] == '\r')
+                line.erase(line.length() - 1);
+            if (InputHelper::trim(line).empty()) continue;
+
+            bool dup = false;
+            if (processline(line, tree, dup) == 1) loaded++;
+            else if (dup) skippedduplicate++;
+            else skippedinvalid++;
+        }
+        return loaded;
+    }
+};
