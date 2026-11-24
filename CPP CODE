@@ -1476,3 +1476,59 @@ public:
             autosave();
         }
     }
+
+  void deletestudent() {
+        cout << endl << "DELETE STUDENT" << endl;
+        Student* s = promptexistingstudent();
+        if (s == NULL) return;
+        cout << endl;
+        s->printfulldetails();
+        if (!InputHelper::confirm("Are you sure you want to delete this student?")) {
+            cout << "Delete cancelled." << endl;
+            return;
+        }
+        string roll = s->getrollnumber();
+        s = NULL;
+        bst.remove(roll);
+        rebuildindexes();
+        cout << "Student " << roll << " deleted from all indexes." << endl;
+        autosave();
+    }
+
+    void viewallstudents() {
+        cout << endl << "ALL STUDENTS (Roll Number order)" << endl;
+        bst.displayall();
+        cout << endl << "Total students: " << bst.countnodes() << endl;
+    }
+
+    void searchbydepartment() {
+        string dept = InputHelper::trim(InputHelper::readline("Department (for example CS): "));
+        cout << endl;
+        int n = depttable.searchanddisplay(dept);
+        if (n == 0) cout << "No students found in this department." << endl;
+        else cout << endl << "Total in " << Student::toupperstr(dept) << ": " << n << endl;
+    }
+
+    void showdepartmentcounts() {
+        cout << endl << "DEPARTMENT-WISE COUNT" << endl;
+        depttable.displaykeycounts();
+    }
+
+    void showdepartmentstudents() {
+        cout << endl << "DEPARTMENT-WISE STUDENTS" << endl;
+        if (bst.isempty()) { cout << "No records found." << endl; return; }
+        int n = bst.countnodes();
+        Student** arr = new Student*[n];
+        bst.fillarray(arr);
+        for (int i = 0; i < n; i++) {
+            bool seen = false;
+            for (int j = 0; j < i; j++)
+                if (arr[j]->getdepartment() == arr[i]->getdepartment()) { seen = true; break; }
+            if (seen) continue;
+            cout << endl << "Department: " << arr[i]->getdepartment()
+                 << "  (" << depttable.countbykey(arr[i]->getdepartment()) << " students)" << endl;
+            depttable.searchanddisplay(arr[i]->getdepartment());
+        }
+        delete[] arr;
+    }
+
