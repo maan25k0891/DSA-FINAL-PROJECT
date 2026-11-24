@@ -1323,3 +1323,156 @@ private:
             cout << "  Error: format must be DDX-DDDD (for example 25K-1011)." << endl;
         }
     }
+
+Student* promptexistingstudent() {
+        string roll = Student::toupperstr(InputHelper::trim(InputHelper::readline("Roll Number: ")));
+        Student* s = bst.search(roll);
+        if (s == NULL) cout << "Error: Roll Number " << roll << " not found." << endl;
+        return s;
+    }
+
+    static int lowerbound(Student** a, int n, double value, int& steps) {
+        int lo = 0, hi = n;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            steps++;
+            if (a[mid]->getcgpa() < value) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    static int upperbound(Student** a, int n, double value, int& steps) {
+        int lo = 0, hi = n;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            steps++;
+            if (a[mid]->getcgpa() <= value) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+public:
+    StudentManager() : depttable(false), nametable(true), heap(16), filemgr("students.txt") {}
+
+    void initialize() {
+        if (!filemgr.fileexists()) {
+            createsamples();
+            rebuildindexes();
+            if (filemgr.save(bst))
+                cout << "Welcome to NEXUS! Sample Student Database Initialized Successfully." << endl;
+            else
+                cout << "Samples were created but students.txt could not be created (check folder permissions)." << endl;
+        } else {
+            int bad = 0, dup = 0;
+            int loaded = filemgr.load(bst, bad, dup);
+            rebuildindexes();
+            cout << "Welcome back to NEXUS! " << loaded << " student record(s) loaded from "
+                 << filemgr.getfilename() << "." << endl;
+            if (loaded == 0 && bad == 0 && dup == 0)
+                cout << "(The database is empty. You can add new students from Student Management.)" << endl;
+            if (dup > 0) cout << "WARNING: " << dup << " duplicate Roll Number record(s) were ignored." << endl;
+            if (bad > 0) cout << "WARNING: " << bad << " invalid line(s) were ignored." << endl;
+        }
+    }
+
+    void addstudent() {
+        cout << endl << "ADD STUDENT" << endl;
+        string roll;
+        while (true) {
+            if (!promptroll(roll)) { cout << "Cancelled." << endl; return; }
+            if (bst.exists(roll)) {
+                cout << "Error: Student with Roll Number " << roll << " already exists! Duplicates are not allowed." << endl;
+                continue;
+            }
+            break;
+        }
+        string name = prompttext("Name (max 20): ", 20);
+        string dept = prompttext("Department (for example CS, SE, AI; max 6): ", 6);
+        int sem = InputHelper::readint("Semester (1-8): ", 1, 8);
+        double cgpa = InputHelper::readdouble("CGPA (0.00-4.00): ", 0.0, 4.0);
+        string email = promptemail();
+        int credits = InputHelper::readint("Completed Credit Hours (0-200): ", 0, 200);
+
+        Student s(roll, name, dept, sem, cgpa, email, credits);
+
+        int hc = InputHelper::readint("How many previous semester GPAs do you want to enter (0-12): ", 0, max_history);
+        for (int i = 0; i < hc; i++) {
+            cout << "Semester result #" << (i + 1) << endl;
+            double g = InputHelper::readdouble("  GPA (0.00-4.00): ", 0.0, 4.0);
+            s.addsemestergpa(g);
+        }
+
+        if (!bst.insert(s)) {
+            cout << "Error: Duplicate Roll Number! Student was not added." << endl;
+            return;
+        }
+        Student* p = bst.search(roll);
+        depttable.insert(p);
+        nametable.insert(p);
+        heap.insert(p);
+        cout << "Student added successfully." << endl;
+        autosave();
+    }
+
+    void searchstudent() {
+        cout << endl << "SEARCH STUDENT" << endl;
+        cout << "    1. Search by Roll Number (BST)" << endl;
+        cout << "    2. Search by Name (Hash Table)" << endl;
+        int c = InputHelper::readint("Choice: ", 1, 2);
+        if (c == 1) {
+            Student* s = promptexistingstudent();
+            if (s != NULL) { cout << endl; s->printfulldetails(); }
+        } else {
+            string name = InputHelper::trim(InputHelper::readline("Name (full name): "));
+            cout << endl;
+            if (nametable.searchanddisplay(name) == 0)
+                cout << "Name not found." << endl;
+        }
+    }
+
+    void updatestudent() {
+        cout << endl << "UPDATE STUDENT" << endl;
+        Student* s = promptexistingstudent();
+        if (s == NULL) return;
+
+        while (true) {
+            cout << endl;
+            s->printfulldetails();
+            cout << endl << "(Roll Number is the primary key and cannot be changed.)" << endl;
+            cout << "    1. Name" << endl << "    2. Department" << endl << "    3. Semester" << endl
+                 << "    4. CGPA" << endl << "    5. Email" << endl << "    6. Completed Credit Hours" << endl
+                 << "    7. Add Semester GPA to history" << endl << "    8. Edit a history GPA" << endl
+                 << "    9. Clear GPA history" << endl << "    10. Done" << endl;
+            int c = InputHelper::readint("Choice: ", 1, 10);
+            if (c == 10) return;
+
+            if (c == 1) s->setname(prompttext("New name: ", 20));
+            else if (c == 2) s->setdepartment(prompttext("New department: ", 6));
+            else if (c == 3) s->setsemester(InputHelper::readint("New semester (1-8): ", 1, 8));
+            else if (c == 4) s->setcgpa(InputHelper::readdouble("New CGPA (0.00-4.00): ", 0.0, 4.0));
+            else if (c == 5) s->setemail(promptemail());
+            else if (c == 6) s->setcompletedcredithours(InputHelper::readint("New credit hours (0-200): ", 0, 200));
+            else if (c == 7) {
+                if (s->gethistorycount() >= max_history) {
+                    cout << "GPA history is full (max 12)." << endl;
+                    continue;
+                }
+                s->addsemestergpa(InputHelper::readdouble("Semester GPA (0.00-4.00): ", 0.0, 4.0));
+            }
+            else if (c == 8) {
+                if (s->gethistorycount() == 0) { cout << "GPA history is empty." << endl; continue; }
+                int idx = InputHelper::readint("Which result number do you want to edit: ", 1, s->gethistorycount());
+                s->sethistoryat(idx - 1, InputHelper::readdouble("New GPA (0.00-4.00): ", 0.0, 4.0));
+            }
+            else if (c == 9) {
+                if (InputHelper::confirm("Do you want to clear the GPA history?")) s->clearhistory();
+                else continue;
+            }
+
+            rebuildindexes();
+            cout << "Updated successfully." << endl;
+            autosave();
+        }
+    }
