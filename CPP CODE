@@ -979,3 +979,106 @@ public:
         return loaded;
     }
 };
+
+class WhatIfCGPACalculator {
+private:
+    double currentcgpa;
+    int    completedcredits;
+    int    nextcredits;
+
+    double requiredgpa(double target) const {
+        double total = completedcredits + nextcredits;
+        return ((target * total) - (currentcgpa * completedcredits)) / nextcredits;
+    }
+
+    double projectedcgpa(double gpa) const {
+        double total = completedcredits + nextcredits;
+        return ((currentcgpa * completedcredits) + (gpa * nextcredits)) / total;
+    }
+
+    void showrequired() const {
+        double target = InputHelper::readdouble("Target CGPA (0.00 - 4.00): ", 0.0, 4.0);
+        double req = requiredgpa(target);
+
+        cout << endl << "Calculation" << endl;
+        cout << "Required GPA = ((" << fixed << setprecision(2) << target << " x ("
+             << completedcredits << " + " << nextcredits << ")) - ("
+             << currentcgpa << " x " << completedcredits << ")) / " << nextcredits << endl;
+        cout << "Required GPA = " << setprecision(3) << req << endl << endl;
+
+        if (req > 4.0 + 1e-9) {
+            cout << "Result: TARGET NOT ACHIEVABLE next semester." << endl;
+            cout << "Even with a perfect 4.00 GPA, the maximum possible CGPA is "
+                 << setprecision(2) << projectedcgpa(4.0) << "." << endl;
+        } else if (req <= 0.0) {
+            cout << "Result: ACHIEVABLE - the target is already safe." << endl;
+            cout << "Even with a 0.00 GPA next semester, the CGPA would stay at "
+                 << setprecision(2) << projectedcgpa(0.0) << " (above the target)." << endl;
+        } else {
+            cout << "Result: ACHIEVABLE. You need at least " << setprecision(2) << req
+                 << " GPA." << endl;
+            if (req <= 2.5)       cout << "Difficulty level: Easy" << endl;
+            else if (req <= 3.3)  cout << "Difficulty level: Moderate" << endl;
+            else if (req <= 3.7)  cout << "Difficulty level: Hard" << endl;
+            else                  cout << "Difficulty level: Very hard" << endl;
+        }
+    }
+
+    void showprojected() const {
+        double gpa = InputHelper::readdouble("Expected next semester GPA (0.00 - 4.00): ", 0.0, 4.0);
+        double proj = projectedcgpa(gpa);
+        cout << endl << "Calculation" << endl;
+        cout << "Projected CGPA = ((" << fixed << setprecision(2) << currentcgpa << " x "
+             << completedcredits << ") + (" << gpa << " x " << nextcredits << ")) / ("
+             << completedcredits << " + " << nextcredits << ")" << endl;
+        cout << "Projected CGPA = " << setprecision(2) << proj << endl;
+        double diff = proj - currentcgpa;
+        cout << "Change         = " << (diff >= 0 ? "+" : "") << diff << endl;
+    }
+
+    void showscenarios() const {
+        double gpas[8] = {4.00, 3.70, 3.30, 3.00, 2.70, 2.30, 2.00, 1.00};
+        cout << endl << left << setw(16) << "Semester GPA" << setw(16) << "Projected CGPA"
+             << "Change" << endl;
+        for (int i = 0; i < 8; i++) {
+            double p = projectedcgpa(gpas[i]);
+            double d = p - currentcgpa;
+            cout << left << fixed << setprecision(2) << setw(16) << gpas[i]
+                 << setw(16) << p << (d >= 0 ? "+" : "") << d << endl;
+        }
+    }
+
+public:
+    WhatIfCGPACalculator() : currentcgpa(0.0), completedcredits(0), nextcredits(15) {}
+
+    void run(const Student* student) {
+        cout << endl << "WHAT-IF CGPA CALCULATOR" << endl;
+        if (student != NULL) {
+            currentcgpa = student->getcgpa();
+            completedcredits = student->getcompletedcredithours();
+            cout << "Student : " << student->getname() << " (" << student->getrollnumber() << ")" << endl;
+        } else {
+            cout << "Hypothetical mode (no real student record will be changed)." << endl;
+            currentcgpa = InputHelper::readdouble("Current CGPA (0.00 - 4.00): ", 0.0, 4.0);
+            completedcredits = InputHelper::readint("Completed credit hours (0 - 200): ", 0, 200);
+        }
+        cout << fixed << setprecision(2);
+        cout << "Current CGPA            : " << currentcgpa << endl;
+        cout << "Completed Credit Hours  : " << completedcredits << endl;
+        nextcredits = InputHelper::readint("Next semester credit hours (1 - 24): ", 1, 24);
+        cout << "Note: The official CGPA is NOT changed by this simulation." << endl;
+
+        while (true) {
+            cout << endl << "    1. Required GPA for a Target CGPA" << endl;
+            cout << "    2. Projected CGPA for an Expected GPA" << endl;
+            cout << "    3. Different GPA Scenarios" << endl;
+            cout << "    4. Back" << endl;
+            int c = InputHelper::readint("Choice: ", 1, 4);
+            if (c == 4) return;
+            if (c == 1) showrequired();
+            else if (c == 2) showprojected();
+            else showscenarios();
+        }
+    }
+};
+
